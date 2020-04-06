@@ -11,17 +11,21 @@ from datasets import Kitti, Tum, Euroc, Zurich, Cityscapes, Make3D
 def main():
 
     # Create the kitti dataset
-    #k = Kitti(sequence="01")
+    k = Kitti(sequence="00")
     #k = Tum(sequence="sequence_01")
     #k = Euroc(sequence='MH_01_easy')
     #k = Zurich()
-    k = Cityscapes(city='aachen', type='train')
+    #k = Cityscapes(city='aachen', type='train')
 
-    for frame in k.next_frame():
-        cv2.imshow("frame", frame)
-        cv2.waitKey(0)
+    k.evaluate('test_01', plot=False)
 
-    cv2.destroyAllWindows()
+
+
+    # for frame in k.next_frame():
+    #      cv2.imshow("frame", frame)
+    #      cv2.waitKey(0)
+    #
+    # cv2.destroyAllWindows()
 
 def plot_make3D():
 
@@ -41,7 +45,8 @@ def plot_make3D():
         cv2.waitKey(0)
 
 if __name__ == '__main__':
-    #main()
-    plot_make3D()
+    main()
+
+    #plot_make3D()
 
 

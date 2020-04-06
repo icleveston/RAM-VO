@@ -8,5 +8,5 @@ class Dataset:
         pass
 
     @abc.abstractmethod
-    def ground_truth(self):
+    def evaluate(self, trajectory):
         pass
