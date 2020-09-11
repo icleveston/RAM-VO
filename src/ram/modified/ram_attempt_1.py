@@ -54,7 +54,7 @@ class RAM:
         self._loc_std = config.loc_std
         self._unit_pixel = config.unit_pixel
         self._n_step = config.n_step
-        self._n_class = config.n_class
+        self._dim_out = config.dim_out
         self._max_grad_norm = config.max_grad_norm
 
     def _create_train_model(self):
@@ -71,7 +71,7 @@ class RAM:
         self.core_net(self.input_im)
 
     def _create_input(self):
-        self.label = tf.placeholder(tf.int64, [None], name='label')
+        self.label = tf.placeholder(tf.float32, [None], name='label')
         self.image = tf.placeholder(tf.float32, [None, None, None, self._n_channel], name='image')
 
         self.input_im = self.image
@@ -115,7 +115,7 @@ class RAM:
             if self.is_training:
                 loc_sample = tf.stop_gradient(sample_normal_single(loc_mean, stddev=self._loc_std))
             else:
-                loc_sample = tf.stop_gradient(sample_normal_single(loc_mean, stddev=self._l_std))
+                loc_sample = tf.stop_gradient(sample_normal_single(loc_mean, stddev=self._loc_std))
 
             glimpse_out = self.glimpse_net(inputs_im, loc_sample)
             action = self.action_net(h)
@@ -128,9 +128,9 @@ class RAM:
 
             h_prev = h
 
-        self.layers['class_logists'] = action
-        self.layers['prob'] = tf.nn.softmax(logits=action, name='prob')
-        self.layers['pred'] = tf.argmax(action, axis=1)
+        self.layers['pred'] = action
+        #self.layers['prob'] = tf.nn.softmax(logits=action, name='prob')
+        #self.layers['pred'] = tf.argmax(action, axis=1)
 
     def glimpse_net(self, inputs, l_sample):
         """
@@ -138,6 +138,7 @@ class RAM:
                 inputs: [batch, h, w, c]
                 l_sample: [batch, 2]
         """
+
         with tf.name_scope('glimpse_sensor'):
             max_r = int(self._glimpse_num * (2 ** (self._glimpse_scale - 2)))
             inputs_pad = tf.pad(
@@ -203,7 +204,7 @@ class RAM:
         
         with tf.variable_scope('act_net'):
             
-            act = Linear(core_state, self._n_class, name='act')
+            act = Linear(core_state, self._dim_out, name='act')
             return act
         
     def train(self, train_data, valid_data):
@@ -246,11 +247,12 @@ class RAM:
             
             saver.restore(sess, '{}{}-{}'.format(self._config.output_path, self._config.name, load))
                 
-            batch_data = valid_data.next_batch_dict()
+            im, label = valid_data.next_batch()
             
             predictor.test_batch(
                                 sess,
-                                batch_data,
+                                im,
+                                label,
                                 unit_pixel=self._config.config.unit_pixel,
                                 size=self._config.config.glimpse,
                                 scale=self._config.config.n_scales,
@@ -331,29 +333,34 @@ class RAM:
         with tf.name_scope('class_cross_entropy'):
             
             label = self.input_label
+
             
             if self.is_training:
-                label = tf.tile(label, [self._n_loc_sample])
+                label = tf.tile(label, [1])
                 
-            logits = self.layers['class_logists']
+            predictions = tf.reshape(self.layers['pred'], [-1])
             
-            cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=label)
+            mse = tf.losses.mean_squared_error(labels=label, predictions=predictions)
             
-            cross_entropy = tf.reduce_mean(cross_entropy)
-            
-            return cross_entropy
+            return mse
 
     def _REINFORCE(self):
         
         with tf.name_scope('REINFORCE'):
+            
             label = self.input_label
+            
             if self.is_training:
-                label = tf.tile(label, [self._n_loc_sample])
+                label = tf.tile(label, [1])
+                
             pred = self.layers['pred']
             
             reward = tf.stop_gradient(tf.cast(tf.equal(pred, label), tf.float32))
-            
-            reward = tf.tile(tf.expand_dims(reward, 1), [1, self._n_step - 1]) # [b_size, n_step]
+                        
+            expanded_reward = tf.expand_dims(reward, 1)
+             
+                        
+            reward = tf.tile(reward, [1, self._n_step - 1]) # [b_size, n_step]
 
             loc_mean = tf.stack(self.layers['loc_mean'][1:]) # [n_step, b_size, 2]
             loc_sample = tf.stack(self.layers['loc_sample'][1:]) # [n_step, b_size, 2]
@@ -363,7 +370,7 @@ class RAM:
             log_prob = tf.transpose(log_prob) # [b_size, n_step]
 
             baselines = self._comp_baselines()
-            
+                       
             b_mse = tf.losses.mean_squared_error(labels=reward, predictions=baselines)
             
             low_var_reward = (reward - tf.stop_gradient(baselines))
@@ -392,7 +399,7 @@ class RAM:
         label = self.input_label
         
         if self.is_training:
-            label = tf.tile(label, [self._n_loc_sample])
+            label = tf.tile(label, [1])
                 
         pred = self.layers['pred']
         
@@ -432,12 +439,9 @@ class Trainer:
         self._model = model
         self._train_data = train_data
         self._lr = init_lr
-
         self._train_op = model.get_train_op()
         self._loss_op = model.get_loss()
         self._accuracy_op = model.get_accuracy()
-        self._sample_loc_op = model.layers['loc_sample']
-        self._pred_op = model.layers['pred']
         self._lr_op = model.cur_lr
 
         self.global_step = 0
@@ -456,13 +460,13 @@ class Trainer:
             self.global_step += 1
             step += 1
 
-            batch_data = self._train_data.next_batch_dict()
+            im, label = self._train_data.next_batch()
             
-            im = batch_data['data']
-            label = batch_data['label']
-            
-            _, loss, acc, cur_lr = sess.run([self._train_op, self._loss_op, self._accuracy_op, self._lr_op], 
-                                            feed_dict={self._model.image: im,
+            _, loss, acc, cur_lr = sess.run([self._train_op,
+                                             self._loss_op, 
+                                             self._accuracy_op,
+                                             self._lr_op], 
+                                             feed_dict={self._model.image: im,
                                                     self._model.label: label,
                                                     self._model.lr: self._lr
                                     })
@@ -488,8 +492,6 @@ class Trainer:
     def valid_epoch(self, sess, dataflow, batch_size, summary_writer=None):
         
         self._model.set_is_training(False)
-        
-        dataflow._setup(epoch_val=0, batch_size=batch_size)
 
         step = 0
         loss_sum = 0
@@ -497,27 +499,29 @@ class Trainer:
         
         while dataflow.epochs_completed == 0:
             
+            print("HWRE")
+            
             step += 1
-            batch_data = dataflow.next_batch_dict()
+            im, label = dataflow.next_batch()
             
             loss, acc = sess.run([self._loss_op, self._accuracy_op], feed_dict={
-                self._model.image: batch_data['data'],
-                self._model.label: batch_data['label'],
+                self._model.image: im,
+                self._model.label: label,
             })
                 
             loss_sum += loss
             acc_sum += acc
             
-        print('valid loss: {:.4f}, accuracy: {:.4f}'.format(loss_sum * 1.0 / step, acc_sum * 1.0 / step))
+        #print('valid loss: {:.4f}, accuracy: {:.4f}'.format(loss_sum * 1.0 / step, acc_sum * 1.0 / step))
 
-        if summary_writer is not None:
+        #if summary_writer is not None:
             
-            s = tf.Summary()
+        #    s = tf.Summary()
             
-            s.value.add(tag='valid/loss', simple_value=loss_sum * 1.0 / step)
-            s.value.add(tag='valid/accuracy', simple_value=acc_sum * 1.0 / step)
+        #    s.value.add(tag='valid/loss', simple_value=loss_sum * 1.0 / step)
+        #    s.value.add(tag='valid/accuracy', simple_value=acc_sum * 1.0 / step)
             
-            summary_writer.add_summary(s, self.global_step)
+        #    summary_writer.add_summary(s, self.global_step)
 
         self._model.set_is_training(True)
         
@@ -538,19 +542,22 @@ class Predictor:
         acc_sum = 0
         while dataflow.epochs_completed == 0:
             step += 1
-            batch_data = dataflow.next_batch_dict()
+            
+            im, label= dataflow.next_batch()
+            
             acc = sess.run(
                 self._accuracy_op, 
-                feed_dict={self._model.image: batch_data['data'],
-                           self._model.label: batch_data['label'],
+                feed_dict={self._model.image: im,
+                           self._model.label: label,
                            })
+                
             acc_sum += acc
-        print('accuracy: {:.4f}'
-              .format(acc_sum * 1.0 / step))
+            
+        print('accuracy: {:.4f}'.format(acc_sum * 1.0 / step))
 
         self._model.set_is_training(True)
 
-    def test_batch(self, sess, batch_data, unit_pixel, size, scale, save_path=''):
+    def test_batch(self, sess, x, y, unit_pixel, size, scale, save_path=''):
         def draw_bbx(ax, x, y):
             rect = patches.Rectangle(
                 (x, y), cur_size, cur_size, edgecolor='r', facecolor='none', linewidth=2)
@@ -558,12 +565,11 @@ class Predictor:
 
         self._model.set_is_training(False)
         
-        test_im = batch_data['data']
         loc_list, pred, input_im, glimpses = sess.run(
             [self._sample_loc_op, self._pred_op, self._model.input_im,
              self._model.layers['retina_reprsent']],
-            feed_dict={self._model.image: test_im,
-                       self._model.label: batch_data['label'],
+            feed_dict={self._model.image: x,
+                       self._model.label: y,
                         })
 
         pad_r = size * (2 ** (scale - 2))
