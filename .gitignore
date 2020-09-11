@@ -1,2 +1,20 @@
+### Python
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+/bin/*
+/output/*
+.pylintrc
+.vscode/*
+Pipfile*
+# Report temporary file
+*.pdf
+
+#vim temprary files
+*.swp
+*.swo
+
 src/ram/modified/dataset/
 src/ram/modified/out/
