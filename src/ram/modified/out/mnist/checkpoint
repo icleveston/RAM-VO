@@ -1,0 +1,6 @@
+model_checkpoint_path: "mnist-6-12"
+all_model_checkpoint_paths: "mnist-6-8"
+all_model_checkpoint_paths: "mnist-6-9"
+all_model_checkpoint_paths: "mnist-6-10"
+all_model_checkpoint_paths: "mnist-6-11"
+all_model_checkpoint_paths: "mnist-6-12"

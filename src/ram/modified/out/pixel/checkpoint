@@ -1,0 +1,3 @@
+model_checkpoint_path: "pixel-6-1"
+all_model_checkpoint_paths: "pixel-6-0"
+all_model_checkpoint_paths: "pixel-6-1"
