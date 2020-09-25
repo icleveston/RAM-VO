@@ -1,3 +1,4 @@
+import os
 import pickle
 import argparse
 import numpy as np
@@ -13,7 +14,7 @@ input_index = 1
 def parse_arguments():
     
     arg = argparse.ArgumentParser()
-    arg.add_argument("--dir", type=str, required=True, help="path to directory")
+    arg.add_argument("--dir", type=str, required=True, help="path to the output execution")
     arg.add_argument("--epoch", type=int, required=True, help="epoch of desired plot")
     
     args = vars(arg.parse_args())
@@ -22,9 +23,9 @@ def parse_arguments():
 
 
 def main(plot_dir, epoch):
-    
+        
     # Read the pickle files
-    glimpses = pickle.load(open(plot_dir + "glimpses_epoch_{}.p".format(epoch), "rb"))
+    glimpses = pickle.load(open(os.path.join("out", plot_dir, 'glimpse', f"glimpses_epoch_{epoch}.p"), "rb"))
     
     # Get the frame t
     img_0, locs_0 = glimpses[0]
@@ -51,8 +52,8 @@ def main(plot_dir, epoch):
     # Get the parameters
     num_glimpses = int(parameters[1])
     patch_size = int(parameters[2][0])
-    num_patches = int(parameters[-2][0])
-    glimpse_scale = int(parameters[-1][0])
+    num_patches = int(parameters[3][0])
+    glimpse_scale = int(parameters[4][0])
     img_shape = np.shape(img_0)[2]
     
     # Denormalize coordinates
@@ -132,8 +133,7 @@ def main(plot_dir, epoch):
     )
 
     # Save the video file
-    name = plot_dir + "epoch_{}.mp4".format(epoch)
-    anim.save(name, extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
+    anim.save(os.path.join("out", plot_dir, 'glimpse', f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
 
 
 if __name__ == "__main__":

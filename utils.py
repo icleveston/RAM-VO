@@ -20,7 +20,6 @@ def bounding_box(x, y, size, color="w"):
     return rect
 
 
-# https://github.com/pytorch/examples/blob/master/imagenet/main.py
 class AverageMeter:
     def __init__(self):
         self.reset()

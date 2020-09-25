@@ -50,24 +50,34 @@ class Main:
         self.use_gpu = True # Whether to run on the GPU
         self.random_seed = 1 # Seed to ensure reproducibility
         self.best = True # Load best model or most recent for testing
-        self.ckpt_dir = "./ckpt" # Directory in which to save model checkpoints
-        self.logs_dir = "./logs/" # Directory in which Tensorboard logs wil be stored
         self.resume = False # Whether to resume training from checkpoint
         self.print_freq = 10 # How frequently to print training details
         self.num_workers = 4
         self.pin_memory = False
         self.best_valid_acc = 0.0
         self.counter = 0
+        
+        # Set the folder time for each execution
+        folder_time = time.strftime("%Y_%m_%d_%H_%M_%S")
 
         # Set the model name
-        self.model_name = f"ram_{self.num_glimpses}_{self.patch_size}x{self.patch_size}_{self.num_patches}_{self.glimpse_scale}"
+        self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}x{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
 
-        # Set the out dir
-        self.out_dir = f"out/{self.model_name}/"
+        # Set the folders
+        self.output_path = f"out/{self.model_name}/"
+        self.checkpoint_path = f"{self.output_path}/checkpoint/"
+        self.glimpse_path = f"{self.output_path}/glimpse/"
+        self.loss_path = f"{self.output_path}/loss/"
         
-        # Create the plot dir
-        if not os.path.exists(self.out_dir):
-            os.makedirs(self.out_dir)
+        # Create the folders
+        if not os.path.exists(self.output_path):
+            os.makedirs(self.output_path)
+        if not os.path.exists(self.checkpoint_path):
+            os.makedirs(self.checkpoint_path)
+        if not os.path.exists(self.glimpse_path):
+            os.makedirs(self.glimpse_path)
+        if not os.path.exists(self.loss_path):
+            os.makedirs(self.loss_path)
         
         # Set the seed
         torch.manual_seed(self.random_seed)
@@ -152,12 +162,15 @@ class Main:
         if self.resume:
             self.load_checkpoint(best=False)
 
-        print("\n[*] Train on {} samples, validate on {} samples".format(self.num_train, self.num_valid))
+        print(f"[*] Train on {self.num_train} samples, validate on {self.num_valid} samples")
 
         # For each epoch
         for epoch in range(self.start_epoch, self.epochs):
 
-            print("\nEpoch: {}/{} - LR: {:.6f}".format(epoch+1, self.epochs, self.optimizer.param_groups[0]["lr"]))
+            # Get the current lr
+            current_lr = self.optimizer.param_groups[0]["lr"]
+
+            print(f"\nEpoch: {epoch+1}/{self.epochs} - LR: {current_lr}")
 
             # Train one epoch
             train_loss, train_acc = self.train_one_epoch(epoch)
@@ -168,22 +181,19 @@ class Main:
             # Reduce lr if validation loss plateaus
             self.scheduler.step(-valid_acc)
 
+            # Check if it is the best model
             is_best = valid_acc > self.best_valid_acc
             
-            msg1 = "train loss: {:.3f} - train acc: {:.3f}"
-            msg2 = " | val loss: {:.3f} - val acc: {:.3f}"
+            msg = "train loss: {:.3f} - train acc: {:.3f} | val loss: {:.3f} - val acc: {:.3f}"
             
+            # Check for improvement
             if is_best:
                 self.counter = 0
-                msg2 += " [*]"
-                
-            msg = msg1 + msg2
+                msg += " [*]"
+            else:
+                self.counter += 1
             
             print(msg.format(train_loss, train_acc, valid_loss, valid_acc))
-
-            # check for improvement
-            if not is_best:
-                self.counter += 1
                 
             #if self.counter > self.train_patience:
             #    print("[!] No improvement in a while, stopping training.")
@@ -191,6 +201,7 @@ class Main:
             
             self.best_valid_acc = max(valid_acc, self.best_valid_acc)
             
+            # Save the checkpoint for each epoch
             self.save_checkpoint({
                     "epoch": epoch + 1,
                     "model_state": self.model.state_dict(),
@@ -214,6 +225,13 @@ class Main:
         batch_time = AverageMeter()
         losses = AverageMeter()
         accs = AverageMeter()
+        
+        # Store the losses array
+        loss_action_array = []
+        loss_baseline_array = []
+        loss_reinforce_0_array = []
+        loss_reinforce_1_array = []
+        accuracy_array = []
 
         tic = time.time()
         with tqdm(total=self.num_train) as pbar:
@@ -225,12 +243,10 @@ class Main:
                 
                 # Convert the data to float
                 dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
-                x_0 = x[0].type(dtype) 
-                x_1 = x[1].type(dtype) 
                 y = y.type(dtype)
 
                 # Set data to the respected device
-                x_0, x_1, y = x_0.to(self.device), x_1.to(self.device), y.to(self.device)
+                x_0, x_1, y = x[0].to(self.device), x[1].to(self.device), y.to(self.device)
 
                 # initialize location vector and hidden state
                 self.batch_size = x_0.shape[0]
@@ -278,8 +294,6 @@ class Main:
                 # compute losses for differentiable modules
                 loss_action = F.nll_loss(log_probas, y.long())
                 loss_baseline = F.mse_loss(baselines, R)
-                
-                
 
                 # Denormalize the predictions
                 #pred = torch.stack([denormalize(25, l) for l in predicted])
@@ -304,14 +318,6 @@ class Main:
             
                 loss_reinforce_1 = torch.sum(-log_pi_1 * adjusted_reward, dim=1)
                 loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 0.01
-                
-                #print(loss_action)
-                #print(loss_baseline)
-                #print(loss_reinforce_0)
-                #print(loss_reinforce_1)
-                #print(predicted[0])
-                #print(y[0])
-                #exit()
 
                 # Join the losses
                 loss = loss_action + loss_baseline + loss_reinforce_0  + loss_reinforce_1
@@ -319,22 +325,29 @@ class Main:
                 # Get the mae
                 #mae = loss_action
                 correct = (predicted == y).float()
-                mae = 100 * (correct.sum() / len(y))
+                acc = 100 * (correct.sum() / len(y))
+                
+                # Store the losses and accuracy
+                loss_action_array.append(loss_action.cpu().data.numpy())
+                loss_baseline_array.append(loss_baseline.cpu().data.numpy())
+                loss_reinforce_0_array.append(loss_reinforce_0.cpu().data.numpy())
+                loss_reinforce_1_array.append(loss_reinforce_1.cpu().data.numpy())
+                accuracy_array.append(acc.cpu().data.numpy())
 
                 # Store the loss and metric
                 losses.update(loss.item(), x_0.size()[0])
-                accs.update(mae.item(), x_0.size()[0])
+                accs.update(acc.item(), x_0.size()[0])
 
                 # Compute gradients and update SGD
                 loss.backward()
                 self.optimizer.step()
 
-                # measure elapsed time
+                # Measure elapsed time
                 toc = time.time()
                 batch_time.update(toc - tic)
 
                 # Set the var description
-                pbar.set_description(("{:.1f}s - loss: {:.3f} - acc: {:.3f}".format((toc-tic), loss.item(), mae.item())))
+                pbar.set_description(("{:.1f}s - loss: {:.3f} - acc: {:.3f}".format((toc-tic), loss.item(), acc.item())))
                 
                 # Update the bar
                 pbar.update(self.batch_size)
@@ -352,8 +365,15 @@ class Main:
                     data = ((img_0, loc_0), (img_1, loc_1))
                     
                     # Dump the glimpses
-                    with open(self.out_dir + f"glimpses_epoch_{epoch+1}.p", "wb") as f:
+                    with open(self.glimpse_path + f"glimpses_epoch_{epoch+1}.p", "wb") as f:
                         pickle.dump(data, f)
+
+            # Dump the loss
+            with open(self.loss_path + f"loss_epoch_{epoch+1}.p", "wb") as f:
+                
+                data = (accuracy_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
+                
+                pickle.dump(data, f)
 
             return losses.avg, accs.avg
 
@@ -530,12 +550,20 @@ class Main:
         If this model has reached the best validation accuracy thus
         far, a seperate file with the suffix `best` is created.
         """
-        filename = self.model_name + "_ckpt.pth.tar"
-        ckpt_path = os.path.join(self.ckpt_dir, filename)
+        filename = self.model_name + "_checkpoint.tar"
+        
+        # Set the checkpoint path
+        ckpt_path = os.path.join(self.checkpoint_path, filename)
+        
+        # Save the checkpoint
         torch.save(state, ckpt_path)
+        
+        # Save the best model
         if is_best:
-            filename = self.model_name + "_model_best.pth.tar"
-            shutil.copyfile(ckpt_path, os.path.join(self.ckpt_dir, filename))
+            filename = self.model_name + "_best_model.tar"
+            
+            # Copy the checkpoint to the best model
+            shutil.copyfile(ckpt_path, os.path.join(self.checkpoint_path, filename))
 
     def load_checkpoint(self, best=False):
         """Load the best copy of a model.
@@ -551,29 +579,31 @@ class Main:
                 case the most recent version of the checkpoint
                 is used.
         """
-        print("[*] Loading model from {}".format(self.ckpt_dir))
+        print(f"[*] Loading model from {self.checkpoint_path}")
 
-        filename = self.model_name + "_ckpt.pth.tar"
+        # Define which model to load
         if best:
-            filename = self.model_name + "_model_best.pth.tar"
-        ckpt_path = os.path.join(self.ckpt_dir, filename)
-        ckpt = torch.load(ckpt_path)
-
-        # load variables from checkpoint
-        self.start_epoch = ckpt["epoch"]
-        self.best_valid_acc = ckpt["best_valid_acc"]
-        self.model.load_state_dict(ckpt["model_state"])
-        self.optimizer.load_state_dict(ckpt["optim_state"])
-
-        if best:
-            print(
-                "[*] Loaded {} checkpoint @ epoch {} "
-                "with best valid acc of {:.3f}".format(
-                    filename, ckpt["epoch"], ckpt["best_valid_acc"]
-                )
-            )
+            filename = self.model_name + "_best_model.tar"
         else:
-            print("[*] Loaded {} checkpoint @ epoch {}".format(filename, ckpt["epoch"]))
+            filename = self.model_name + "_checkpoint.tar"
+            
+        # Set the checkpoint path
+        checkpoint_path = os.path.join(self.checkpoint_path, filename)
+        
+        # Load the checkpoint
+        checkpoint = torch.load(checkpoint_path)
+
+        # Load the variables from checkpoint
+        self.start_epoch = checkpoint["epoch"]
+        self.best_valid_acc = checkpoint["best_valid_acc"]
+        self.model.load_state_dict(checkpoint["model_state"])
+        self.optimizer.load_state_dict(checkpoint["optim_state"])
+
+        if best:
+            print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch} with best valid acc of {self.best_valid_acc}")
+        else:
+            print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch}")
+
 
 if __name__ == "__main__":
     

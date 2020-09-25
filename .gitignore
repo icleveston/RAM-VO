@@ -131,6 +131,5 @@ dmypy.json
 .idea/
 
 out/
-ckpt/
 dataset/
 dataset.zip
