@@ -39,8 +39,8 @@ def get_train_valid_loader(
     assert (valid_size >= 0) and (valid_size <= 1), "[!] valid_size should be in the range [0, 1]."
 
     # Call the dataset
-    #dataset = PixelDataset(trans=trans)
-    dataset = BallDataset(trans=trans)
+    dataset = PixelDataset(trans=trans)
+    #dataset = BallDataset(trans=trans)
 
     num_train = len(dataset)
     indices = list(range(num_train))
@@ -76,8 +76,8 @@ def get_train_valid_loader(
 
 def get_test_loader(data_dir, batch_size, num_workers=4, pin_memory=False):
 
-    #dataset = PixelDataset(trans=trans)
-    dataset = BallDataset(trans=trans)
+    dataset = PixelDataset(trans=trans)
+    #dataset = BallDataset(trans=trans)
 
     data_loader = DataLoader(
         dataset,
