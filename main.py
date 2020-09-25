@@ -1,0 +1,581 @@
+import os
+import time
+import shutil
+import pickle
+import torch
+import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from tqdm import tqdm
+from model import RecurrentAttention
+from utils import AverageMeter, denormalize
+from data_loader import get_train_valid_loader, get_test_loader
+
+
+class Main:
+    
+    def __init__(self, train=True):
+        
+        # Glimpse Network Params
+        self.patch_size = 4 # size of extracted patch at highest res
+        self.glimpse_scale = 2 # scale of successive patches
+        self.num_patches = 4 # number of downscaled patches per glimpse
+        self.loc_hidden = 128 # hidden size of loc fc
+        self.glimpse_hidden = 128 # hidden size of glimpse fc
+
+        # Core Network Params
+        self.num_glimpses = 6 # number of glimpses, i.e. BPTT iterations
+        self.hidden_size = 512 # hidden size of rnn
+
+        # Reinforce Params
+        self.std = 0.05 # gaussian policy standard deviation
+        self.M = 1 # Monte Carlo sampling for valid and test sets
+        
+        # Data Params
+        self.valid_size = 0.1 # Proportion of training set used for validation
+        self.batch_size = 128 # number of images in each batch of data
+        self.num_workers = 4 # number of subprocesses to use for data loading
+        self.shuffle = True # Whether to shuffle the train and valid indices
+        self.num_out = 2
+        self.num_channels = 3
+            
+        # Training params
+        self.epochs = 200 # number of epochs to train for
+        self.start_epoch = 0
+        self.momentum = 0.5 # Nesterov momentum value
+        self.lr = 3e-4 # Initial learning rate value
+        self.lr_patience = 20 # Number of epochs to wait before reducing lr
+        self.train_patience = 50 # Number of epochs to wait before stopping train
+
+        # Other params
+        self.use_gpu = True # Whether to run on the GPU
+        self.random_seed = 1 # Seed to ensure reproducibility
+        self.best = True # Load best model or most recent for testing
+        self.ckpt_dir = "./ckpt" # Directory in which to save model checkpoints
+        self.logs_dir = "./logs/" # Directory in which Tensorboard logs wil be stored
+        self.resume = False # Whether to resume training from checkpoint
+        self.print_freq = 10 # How frequently to print training details
+        self.num_workers = 4
+        self.pin_memory = False
+        self.best_valid_acc = 0.0
+        self.counter = 0
+
+        # Set the model name
+        self.model_name = f"ram_{self.num_glimpses}_{self.patch_size}x{self.patch_size}_{self.num_patches}_{self.glimpse_scale}"
+
+        # Set the out dir
+        self.out_dir = f"out/{self.model_name}/"
+        
+        # Create the plot dir
+        if not os.path.exists(self.out_dir):
+            os.makedirs(self.out_dir)
+        
+        # Set the seed
+        torch.manual_seed(self.random_seed)
+        
+         # Check if the gpu is available
+        if self.use_gpu and torch.cuda.is_available():
+            
+            self.device = torch.device("cuda")
+            
+            torch.cuda.manual_seed(self.random_seed)
+            
+            self.num_workers = 1
+            self.pin_memory = True
+            
+        else:
+            self.device = torch.device("cpu")
+
+        print("\n[*] Device: " + str(self.device))
+        
+        # Build the model
+        self.model = RecurrentAttention(
+            self.patch_size,
+            self.num_patches,
+            self.glimpse_scale,
+            self.num_channels,
+            self.loc_hidden,
+            self.glimpse_hidden,
+            self.std,
+            self.hidden_size,
+            self.num_out,
+        )
+        
+        # Set the model to the device
+        self.model.to(self.device)
+
+        # Start the optimizer
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+        
+        # Start the scheduler
+        self.scheduler = ReduceLROnPlateau(self.optimizer, "min", patience=self.lr_patience)
+           
+        if train:
+            
+            # Set the data loader
+            data_loader = get_train_valid_loader(
+                self.batch_size,
+                self.valid_size,
+                self.num_workers,
+                self.pin_memory
+            )
+            
+            self.train_loader = data_loader[0]
+            self.valid_loader = data_loader[1]
+            self.num_train = len(self.train_loader.sampler)
+            self.num_valid = len(self.valid_loader.sampler)
+            
+            # Start the train
+            self.train()
+             
+        else:
+            
+            data_loader = get_test_loader(
+                self.batch_size,
+                self.num_workers,
+                self.pin_memory
+            )
+            
+            self.test_loader = data_loader
+            self.num_test = len(self.test_loader.dataset)
+            
+            # Start the test
+            self.test()            
+
+    def train(self):
+        """Train the model on the training set.
+
+        A checkpoint of the model is saved after each epoch
+        and if the validation accuracy is improved upon,
+        a separate ckpt is created for use on the test set.
+        """
+        # load the most recent checkpoint
+        if self.resume:
+            self.load_checkpoint(best=False)
+
+        print("\n[*] Train on {} samples, validate on {} samples".format(self.num_train, self.num_valid))
+
+        # For each epoch
+        for epoch in range(self.start_epoch, self.epochs):
+
+            print("\nEpoch: {}/{} - LR: {:.6f}".format(epoch+1, self.epochs, self.optimizer.param_groups[0]["lr"]))
+
+            # Train one epoch
+            train_loss, train_acc = self.train_one_epoch(epoch)
+
+            # Validate one epoch
+            valid_loss, valid_acc = self.validate(epoch)
+
+            # Reduce lr if validation loss plateaus
+            self.scheduler.step(-valid_acc)
+
+            is_best = valid_acc > self.best_valid_acc
+            
+            msg1 = "train loss: {:.3f} - train acc: {:.3f}"
+            msg2 = " | val loss: {:.3f} - val acc: {:.3f}"
+            
+            if is_best:
+                self.counter = 0
+                msg2 += " [*]"
+                
+            msg = msg1 + msg2
+            
+            print(msg.format(train_loss, train_acc, valid_loss, valid_acc))
+
+            # check for improvement
+            if not is_best:
+                self.counter += 1
+                
+            #if self.counter > self.train_patience:
+            #    print("[!] No improvement in a while, stopping training.")
+            #    return
+            
+            self.best_valid_acc = max(valid_acc, self.best_valid_acc)
+            
+            self.save_checkpoint({
+                    "epoch": epoch + 1,
+                    "model_state": self.model.state_dict(),
+                    "optim_state": self.optimizer.state_dict(),
+                    "best_valid_acc": self.best_valid_acc,
+                }, is_best
+            )
+
+    def train_one_epoch(self, epoch):
+        """
+        Train the model for 1 epoch of the training set.
+
+        An epoch corresponds to one full pass through the entire
+        training set in successive mini-batches.
+
+        This is used by train() and should not be called manually.
+        """
+        
+        self.model.train()
+        
+        batch_time = AverageMeter()
+        losses = AverageMeter()
+        accs = AverageMeter()
+
+        tic = time.time()
+        with tqdm(total=self.num_train) as pbar:
+            
+            # For each batch
+            for i, (x, y) in enumerate(self.train_loader):
+                
+                self.optimizer.zero_grad()
+                
+                # Convert the data to float
+                dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
+                x_0 = x[0].type(dtype) 
+                x_1 = x[1].type(dtype) 
+                y = y.type(dtype)
+
+                # Set data to the respected device
+                x_0, x_1, y = x_0.to(self.device), x_1.to(self.device), y.to(self.device)
+
+                # initialize location vector and hidden state
+                self.batch_size = x_0.shape[0]
+
+                glimpse_location_0 = []
+                glimpse_location_1 = []
+                log_pi_0 = []
+                log_pi_1 = []
+                baselines = []
+                predicted = None
+                
+                # Reset the model parameters
+                h_state, c_state, l_t_0, l_t_1 = self.reset()
+                
+                # For each glimpse
+                for t in range(self.num_glimpses):
+                    
+                    # Get the prediction on the last glimpse
+                    is_last = t==self.num_glimpses-1
+                    
+                    # Call the model
+                    h_state, l_t_0, l_t_1, b_t, log_probas, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+    
+                    # Store the glimpse location for both frames
+                    glimpse_location_0.append(l_t_0)
+                    glimpse_location_1.append(l_t_1)
+                    
+                    # Get the glimpse location loss
+                    log_pi_0.append(p_0)
+                    log_pi_1.append(p_1)
+                    
+                    # Add the baseline
+                    baselines.append(b_t)
+
+                # Convert list to tensors and reshape
+                baselines = torch.stack(baselines).transpose(1, 0)
+                log_pi_0 = torch.stack(log_pi_0).transpose(1, 0)
+                log_pi_1 = torch.stack(log_pi_1).transpose(1, 0)
+                
+                predicted = torch.max(log_probas, 1)[1].long()
+                
+                R = (predicted.detach() == y).float()
+                R = R.unsqueeze(1).repeat(1, self.num_glimpses)
+
+                # compute losses for differentiable modules
+                loss_action = F.nll_loss(log_probas, y.long())
+                loss_baseline = F.mse_loss(baselines, R)
+                
+                
+
+                # Denormalize the predictions
+                #pred = torch.stack([denormalize(25, l) for l in predicted])
+                
+                #loss = torch.nn.MSELoss()
+                #loss = torch.nn.L1Loss()
+                
+                # Compute the reward based on L1 norm
+                #R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(predicted.detach(), y)]).to(self.device))
+                
+                #R = R.unsqueeze(1).repeat(1, self.num_glimpses)
+                    
+                # Compute losses for differentiable modules
+                #loss_action = loss(predicted, y)
+                #loss_baseline = loss(baselines, R)
+
+                # Compute reinforce loss, summed over timesteps and averaged across batch
+                adjusted_reward = R - baselines.detach()
+
+                loss_reinforce_0 = torch.sum(-log_pi_0 * adjusted_reward, dim=1)
+                loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 0.01
+            
+                loss_reinforce_1 = torch.sum(-log_pi_1 * adjusted_reward, dim=1)
+                loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 0.01
+                
+                #print(loss_action)
+                #print(loss_baseline)
+                #print(loss_reinforce_0)
+                #print(loss_reinforce_1)
+                #print(predicted[0])
+                #print(y[0])
+                #exit()
+
+                # Join the losses
+                loss = loss_action + loss_baseline + loss_reinforce_0  + loss_reinforce_1
+
+                # Get the mae
+                #mae = loss_action
+                correct = (predicted == y).float()
+                mae = 100 * (correct.sum() / len(y))
+
+                # Store the loss and metric
+                losses.update(loss.item(), x_0.size()[0])
+                accs.update(mae.item(), x_0.size()[0])
+
+                # Compute gradients and update SGD
+                loss.backward()
+                self.optimizer.step()
+
+                # measure elapsed time
+                toc = time.time()
+                batch_time.update(toc - tic)
+
+                # Set the var description
+                pbar.set_description(("{:.1f}s - loss: {:.3f} - acc: {:.3f}".format((toc-tic), loss.item(), mae.item())))
+                
+                # Update the bar
+                pbar.update(self.batch_size)
+
+                # Save glimpses for the first batch
+                if i == 0:
+                    
+                    # Format the data for storage
+                    img_0 = [g.cpu().data.numpy().squeeze() for g in x_1]
+                    img_1 = [g.cpu().data.numpy().squeeze() for g in x_0]
+                    loc_0 = [l.cpu().data.numpy() for l in glimpse_location_0]
+                    loc_1 = [l.cpu().data.numpy() for l in glimpse_location_1]
+                    
+                    # Build the data to be saved
+                    data = ((img_0, loc_0), (img_1, loc_1))
+                    
+                    # Dump the glimpses
+                    with open(self.out_dir + f"glimpses_epoch_{epoch+1}.p", "wb") as f:
+                        pickle.dump(data, f)
+
+            return losses.avg, accs.avg
+
+    @torch.no_grad()
+    def validate(self, epoch):
+        """Evaluate the RAM model on the validation set.
+        """
+        losses = AverageMeter()
+        accs = AverageMeter()
+
+        for i, (x, y) in enumerate(self.valid_loader):
+                
+            self.optimizer.zero_grad()
+            
+            # Convert the data to float
+            dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
+            x_0 = x[0].type(dtype) 
+            x_1 = x[1].type(dtype) 
+            y = y.type(dtype)
+
+            # Set data to the respected device
+            x_0, x_1, y = x_0.to(self.device), x_1.to(self.device), y.to(self.device)
+
+            # initialize location vector and hidden state
+            self.batch_size = x_0.shape[0]
+
+            glimpse_location_0 = []
+            glimpse_location_1 = []
+            log_pi_0 = []
+            log_pi_1 = []
+            baselines = []
+            predicted = None
+            
+            # Reset the model parameters
+            h_state, c_state, l_t_0, l_t_1 = self.reset()
+            
+            # For each glimpse
+            for t in range(self.num_glimpses):
+                
+                # Get the prediction on the last glimpse
+                is_last = t==self.num_glimpses-1
+                
+                # Call the model
+                h_state, l_t_0, l_t_1, b_t, log_probas, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+
+                # Store the glimpse location for both frames
+                glimpse_location_0.append(l_t_0)
+                glimpse_location_1.append(l_t_1)
+                
+                # Get the glimpse location loss
+                log_pi_0.append(p_0)
+                log_pi_1.append(p_1)
+                
+                # Add the baseline
+                baselines.append(b_t)
+
+            # Convert list to tensors and reshape
+            baselines = torch.stack(baselines).transpose(1, 0)
+            log_pi_0 = torch.stack(log_pi_0).transpose(1, 0)
+            log_pi_1 = torch.stack(log_pi_1).transpose(1, 0)
+            
+            predicted = torch.max(log_probas, 1)[1].long()
+            
+            R = (predicted.detach() == y).float()
+            R = R.unsqueeze(1).repeat(1, self.num_glimpses)
+
+            # compute losses for differentiable modules
+            loss_action = F.nll_loss(log_probas, y.long())
+            loss_baseline = F.mse_loss(baselines, R)
+
+            # Compute reinforce loss, summed over timesteps and averaged across batch
+            adjusted_reward = R - baselines.detach()
+
+            loss_reinforce_0 = torch.sum(-log_pi_0 * adjusted_reward, dim=1)
+            loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 0.01
+        
+            loss_reinforce_1 = torch.sum(-log_pi_1 * adjusted_reward, dim=1)
+            loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 0.01
+
+            # Join the losses
+            loss = loss_action + loss_baseline + loss_reinforce_0  + loss_reinforce_1
+
+            # Get the mae
+            correct = (predicted == y).float()
+            mae = 100 * (correct.sum() / len(y))
+
+            # Store the loss and metric
+            losses.update(loss.item(), x_0.size()[0])
+            accs.update(mae.item(), x_0.size()[0])
+
+        return losses.avg, accs.avg
+
+    @torch.no_grad()
+    def test(self):
+        """Test the RAM model.
+
+        This function should only be called at the very
+        end once the model has finished training.
+        """
+        correct = 0
+
+        # load the best checkpoint
+        self.load_checkpoint(best=self.best)
+
+        for i, (x, y) in enumerate(self.test_loader):
+            x, y = x.to(self.device), y.to(self.device)
+
+            # duplicate M times
+            x = x.repeat(self.M, 1, 1, 1)
+
+            # initialize location vector and hidden state
+            self.batch_size = x.shape[0]
+            h_t, l_t = self.reset()
+
+            # extract the glimpses
+            for t in range(self.num_glimpses - 1):
+                # forward pass through model
+                h_t, l_t, b_t, p = self.model(x, l_t, h_t)
+
+            # last iteration
+            h_t, l_t, b_t, log_probas, p = self.model(x, l_t, h_t, last=True)
+
+            log_probas = log_probas.view(self.M, -1, log_probas.shape[-1])
+            log_probas = torch.mean(log_probas, dim=0)
+
+            pred = log_probas.data.max(1, keepdim=True)[1]
+            correct += pred.eq(y.data.view_as(pred)).cpu().sum()
+
+        perc = (100.0 * correct) / (self.num_test)
+        error = 100 - perc
+        print(
+            "[*] Test Acc: {}/{} ({:.2f}% - {:.2f}%)".format(
+                correct, self.num_test, perc, error
+            )
+        )
+
+    def reset(self):
+        
+        h_t = torch.zeros(
+            self.batch_size,
+            self.hidden_size,
+            dtype=torch.float,
+            device=self.device,
+            requires_grad=True,
+        )
+        
+        h_state = []
+        c_state = []
+        
+        for i in range(1):
+                 
+            h_state_i, c_state_i = torch.randn(2,
+                                               self.batch_size,
+                                               self.hidden_size,
+                                               requires_grad=True).to(self.device)
+        
+            #torch.nn.init.xavier_normal_(h_state_i)
+            #torch.nn.init.xavier_normal_(c_state_i)
+            
+            h_state.append(h_state_i)
+            c_state.append(c_state_i)
+        
+        l_t_0 = torch.FloatTensor(self.batch_size, 2).uniform_(-1, 1).to(self.device)
+        l_t_0.requires_grad = True
+        
+        l_t_1 = torch.FloatTensor(self.batch_size, 2).uniform_(-1, 1).to(self.device)
+        l_t_1.requires_grad = True
+
+        return h_t, c_state, l_t_0, l_t_1
+
+    def save_checkpoint(self, state, is_best):
+        """Saves a checkpoint of the model.
+
+        If this model has reached the best validation accuracy thus
+        far, a seperate file with the suffix `best` is created.
+        """
+        filename = self.model_name + "_ckpt.pth.tar"
+        ckpt_path = os.path.join(self.ckpt_dir, filename)
+        torch.save(state, ckpt_path)
+        if is_best:
+            filename = self.model_name + "_model_best.pth.tar"
+            shutil.copyfile(ckpt_path, os.path.join(self.ckpt_dir, filename))
+
+    def load_checkpoint(self, best=False):
+        """Load the best copy of a model.
+
+        This is useful for 2 cases:
+        - Resuming training with the most recent model checkpoint.
+        - Loading the best validation model to evaluate on the test data.
+
+        Args:
+            best: if set to True, loads the best model.
+                Use this if you want to evaluate your model
+                on the test data. Else, set to False in which
+                case the most recent version of the checkpoint
+                is used.
+        """
+        print("[*] Loading model from {}".format(self.ckpt_dir))
+
+        filename = self.model_name + "_ckpt.pth.tar"
+        if best:
+            filename = self.model_name + "_model_best.pth.tar"
+        ckpt_path = os.path.join(self.ckpt_dir, filename)
+        ckpt = torch.load(ckpt_path)
+
+        # load variables from checkpoint
+        self.start_epoch = ckpt["epoch"]
+        self.best_valid_acc = ckpt["best_valid_acc"]
+        self.model.load_state_dict(ckpt["model_state"])
+        self.optimizer.load_state_dict(ckpt["optim_state"])
+
+        if best:
+            print(
+                "[*] Loaded {} checkpoint @ epoch {} "
+                "with best valid acc of {:.3f}".format(
+                    filename, ckpt["epoch"], ckpt["best_valid_acc"]
+                )
+            )
+        else:
+            print("[*] Loaded {} checkpoint @ epoch {}".format(filename, ckpt["epoch"]))
+
+if __name__ == "__main__":
+    
+    main = Main(train=True)
+    

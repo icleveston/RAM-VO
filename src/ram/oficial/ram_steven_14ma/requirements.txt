@@ -1,0 +1,9 @@
+tensorflow-estimator-2.0-preview==1.14.0.dev2019050100
+bayesian-optimization==1.0.1
+matplotlib==3.0.3
+numpy==1.16.2
+scikit-learn==0.20.3
+scipy==1.2.1
+tf-estimator-nightly==1.14.0.dev2019030115
+tf-nightly-gpu-2.0-preview==2.0.0.dev20190415
+tfp-nightly==0.7.0.dev20190502

@@ -1,0 +1,14 @@
+*.ckpt
+*.SUNet
+*.meta
+
+/summary
+/save-3scales
+
+ram_test.py
+lrSchedule.py
+testing.py
+
+*.zip
+
+lrSchedule.py
