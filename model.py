@@ -389,8 +389,8 @@ class ActionNetwork(nn.Module):
         self.fc = nn.Linear(input_size, hid_size)
         self.fc_mu_x = nn.Linear(hid_size, 1)
         self.fc_mu_y = nn.Linear(hid_size, 1)
-        self.fc_std_x = nn.Linear(hid_size, 1)
-        self.fc_std_y = nn.Linear(hid_size, 1)
+        #self.fc_std_x = nn.Linear(hid_size, 1)
+        #self.fc_std_y = nn.Linear(hid_size, 1)
 
     def forward(self, h_t):
         
@@ -399,15 +399,15 @@ class ActionNetwork(nn.Module):
         mu_x = torch.tanh(self.fc_mu_x(feat))
         mu_y = torch.tanh(self.fc_mu_y(feat))
         
-        std_x = torch.tanh(self.fc_std_x(feat))
-        std_y = torch.tanh(self.fc_std_y(feat))
+        #std_x = torch.tanh(self.fc_std_x(feat))
+        #std_y = torch.tanh(self.fc_std_y(feat))
         
         # reparametrization trick
-        l_t_x = torch.distributions.Normal(mu_x, std_x).rsample()
-        l_t_y = torch.distributions.Normal(mu_y, std_y).rsample()
+        l_t_x = torch.distributions.Normal(mu_x, 0.05).rsample()
+        l_t_y = torch.distributions.Normal(mu_y, 0.05).rsample()
         
-        l_t_x = l_t_x.detach()
-        l_t_y = l_t_y.detach()
+        #l_t_x = l_t_x.detach()
+        #l_t_y = l_t_y.detach()
 
         # bound between [-1, 1]
         l_t_x = torch.clamp(l_t_x, -1, 1)

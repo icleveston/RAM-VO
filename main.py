@@ -424,7 +424,7 @@ class Main:
                 is_last = t==self.num_glimpses-1
                 
                 # Call the model
-                h_state, l_t_0, l_t_1, b_t, log_probas, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
 
                 # Store the glimpse location for both frames
                 glimpse_location_0.append(l_t_0)
@@ -442,14 +442,19 @@ class Main:
             log_pi_0 = torch.stack(log_pi_0).transpose(1, 0)
             log_pi_1 = torch.stack(log_pi_1).transpose(1, 0)
             
-            predicted = torch.max(log_probas, 1)[1].long()
+            # Denormalize the predictions
+            pred = torch.stack([denormalize(8, l) for l in predicted])
             
-            R = (predicted.detach() == y).float()
+            loss = torch.nn.MSELoss()
+            
+            # Compute the reward based on L1 norm
+            R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(pred.detach(), y)]).to(self.device))
+            
             R = R.unsqueeze(1).repeat(1, self.num_glimpses)
-
-            # compute losses for differentiable modules
-            loss_action = F.nll_loss(log_probas, y.long())
-            loss_baseline = F.mse_loss(baselines, R)
+                
+            # Compute losses for differentiable modules
+            loss_action = loss(predicted, y)
+            loss_baseline = loss(baselines, R)
 
             # Compute reinforce loss, summed over timesteps and averaged across batch
             adjusted_reward = R - baselines.detach()
@@ -463,13 +468,12 @@ class Main:
             # Join the losses
             loss = loss_action + loss_baseline + loss_reinforce_0  + loss_reinforce_1
 
-            # Get the mae
-            correct = (predicted == y).float()
-            mae = 100 * (correct.sum() / len(y))
+            # Get the mse
+            mse = loss_action
 
             # Store the loss and metric
             losses.update(loss.item(), x_0.size()[0])
-            accs.update(mae.item(), x_0.size()[0])
+            accs.update(mse.item(), x_0.size()[0])
 
         return losses.avg, accs.avg
 
