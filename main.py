@@ -306,17 +306,17 @@ class Main:
                 log_pi_1 = torch.stack(log_pi_1).transpose(1, 0)
                 
                 # Denormalize the predictions
-                pred = torch.stack([denormalize(8, l) for l in predicted])
+                predicted_denormalized = torch.stack([denormalize(8, l) for l in predicted])
                 
                 loss = torch.nn.MSELoss()
                 
                 # Compute the reward based on L1 norm
-                R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(pred.detach(), y)]).to(self.device))
+                R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(predicted_denormalized.detach(), y)]).to(self.device))
                 
                 R = R.unsqueeze(1).repeat(1, self.num_glimpses)
                     
                 # Compute losses for differentiable modules
-                loss_action = loss(predicted, y)
+                loss_action = loss(predicted_denormalized, y)
                 loss_baseline = loss(baselines, R)
 
                 # Compute reinforce loss, summed over timesteps and averaged across batch
