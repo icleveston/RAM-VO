@@ -41,8 +41,8 @@ def get_data_loader(
     ])
 
     # Call the dataset
-    dataset = PixelUniformDataset(trans=trans)
-    #dataset = PixelSkippedDataset(trans=trans)
+    #dataset = PixelUniformDataset(trans=trans)
+    dataset = PixelSkippedDataset(trans=trans)
     #dataset = BallDataset(trans=trans)
 
     # Get the dataset size

@@ -45,7 +45,7 @@ class RecurrentAttention(nn.Module):
         self.rnn = CoreNetwork(hidden_size, hidden_size)
         self.locator_0 = LocationNetwork(hidden_size, 2, std)
         self.locator_1 = LocationNetwork(hidden_size, 2, std)
-        self.regressor = ActionNetwork(hidden_size, 9) # num_out
+        self.regressor = ActionNetwork(hidden_size, num_out) 
         self.baseliner = BaselineNetwork(hidden_size, 1)
 
     def forward(self, x_0, x_1, l_t_prev_0, l_t_prev_1, h_state_prev, c_state_prev, last=False):
@@ -84,8 +84,6 @@ class RecurrentAttention(nn.Module):
         
         g_t_0 = self.sensor_0(x_0, l_t_prev_0)
         g_t_1 = self.sensor_1(x_1, l_t_prev_1)
-        
-        #g_t = g_t_0 + g_t_1
         
         g_t = torch.cat((g_t_0, g_t_1), dim=1)
     
@@ -279,9 +277,7 @@ class GlimpseNetwork(nn.Module):
         what = self.fc3(phi_out)
         where = self.fc4(l_out)
 
-        # feed to fc layer
         g_t = F.relu(torch.cat((what, where), dim=1))
-        #g_t = F.relu(what + where)
 
         return g_t
 
@@ -388,19 +384,38 @@ class ActionNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
 
-        self.fc_1 = nn.Linear(input_size, input_size)
+        hid_size = input_size//2
         
-        self.fc_2 = nn.Linear(input_size, input_size//2)
-        
-        self.fc_3 = nn.Linear(input_size//2, output_size)
+        self.fc = nn.Linear(input_size, hid_size)
+        self.fc_mu_x = nn.Linear(hid_size, 1)
+        self.fc_mu_y = nn.Linear(hid_size, 1)
+        self.fc_std_x = nn.Linear(hid_size, 1)
+        self.fc_std_y = nn.Linear(hid_size, 1)
 
     def forward(self, h_t):
         
-        x_1 = F.relu(self.fc_1(h_t))
+        feat = F.relu(self.fc(h_t.detach()))
         
-        x_2 = F.relu(self.fc_2(x_1))
+        mu_x = torch.tanh(self.fc_mu_x(feat))
+        mu_y = torch.tanh(self.fc_mu_y(feat))
         
-        return F.log_softmax(self.fc_3(x_2), dim=1)
+        std_x = torch.tanh(self.fc_std_x(feat))
+        std_y = torch.tanh(self.fc_std_y(feat))
+        
+        # reparametrization trick
+        l_t_x = torch.distributions.Normal(mu_x, std_x).rsample()
+        l_t_y = torch.distributions.Normal(mu_y, std_y).rsample()
+        
+        l_t_x = l_t_x.detach()
+        l_t_y = l_t_y.detach()
+
+        # bound between [-1, 1]
+        l_t_x = torch.clamp(l_t_x, -1, 1)
+        l_t_y = torch.clamp(l_t_y, -1, 1)
+        
+        l_t = torch.cat((l_t_x, l_t_y), dim=1)
+
+        return l_t
 
 
 class LocationNetwork(nn.Module):
