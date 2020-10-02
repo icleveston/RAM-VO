@@ -2,26 +2,21 @@ import numpy as np
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from torch.utils.data import DataLoader
-from dataset_pixel import PixelDataset
+from dataset_pixel import PixelUniformDataset, PixelSkippedDataset
 from dataset_ball import BallDataset
 from utils import plot_images
 
 
-# Compose the transformations
-trans = transforms.Compose([
-    transforms.ToTensor(),
-    #transforms.Normalize((0.411, 0.411, 0.411), (10.191, 10.191, 10.191))
-])
-
-
-def get_train_valid_loader(
+def get_data_loader(
     batch_size,
     valid_size=0.2,
+    test_size=0.1,
+    random_seed=1,
     num_workers=4,
     shuffle=True,
-    pin_memory=False,
+    pin_memory=False
 ):
-    """Train and validation data loaders.
+    """Get the data loaders.
 
     If using CUDA, num_workers should be set to 1 and pin_memory to True.
 
@@ -37,30 +32,44 @@ def get_train_valid_loader(
     """
 
     assert (valid_size >= 0) and (valid_size <= 1), "[!] valid_size should be in the range [0, 1]."
+    assert (test_size >= 0) and (test_size <= 1), "[!] test_size should be in the range [0, 1]."
+
+    # Compose the transformations
+    trans = transforms.Compose([
+        transforms.ToTensor(),
+        #transforms.Normalize((0.411, 0.411, 0.411), (10.191, 10.191, 10.191))
+    ])
 
     # Call the dataset
-    dataset = PixelDataset(trans=trans)
+    dataset = PixelUniformDataset(trans=trans)
+    #dataset = PixelSkippedDataset(trans=trans)
     #dataset = BallDataset(trans=trans)
 
-    num_train = len(dataset)
-    indices = list(range(num_train))
-    split = int(np.floor(valid_size * num_train))
+    # Get the dataset size
+    indices = list(range(len(dataset)))
+    
+    # Get the indexes for validation and test
+    split_valid = int(np.floor(valid_size * len(dataset)))
+    split_test = split_valid + int(np.floor(test_size * len(dataset)))
     
     if shuffle:
         np.random.seed(random_seed)
         np.random.shuffle(indices)
 
-    train_idx, valid_idx = indices[split:], indices[:split]
+    # Split the dataset
+    valid_idx, test_idx, train_idx = indices[:split_valid], indices[split_valid:split_test], indices[split_test:]
 
+    # Define the subsampler for the dataset
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
+    test_sampler = SubsetRandomSampler(test_idx)
 
     train_loader = DataLoader(
         dataset,
         batch_size=batch_size,
         sampler=train_sampler,
         num_workers=num_workers,
-        pin_memory=pin_memory,
+        pin_memory=pin_memory
     )
 
     valid_loader = DataLoader(
@@ -68,31 +77,24 @@ def get_train_valid_loader(
         batch_size=batch_size,
         sampler=valid_sampler,
         num_workers=num_workers,
-        pin_memory=pin_memory,
+        pin_memory=pin_memory
     )
-
-    return train_loader, valid_loader
-
-
-def get_test_loader(data_dir, batch_size, num_workers=4, pin_memory=False):
-
-    dataset = PixelDataset(trans=trans)
-    #dataset = BallDataset(trans=trans)
-
-    data_loader = DataLoader(
+    
+    test_loader = DataLoader(
         dataset,
         batch_size=batch_size,
+        sampler=test_sampler,
         num_workers=num_workers,
-        pin_memory=pin_memory,
+        pin_memory=pin_memory
     )
 
-    return data_loader
+    return train_loader, valid_loader, test_loader
 
 
 if __name__ == "__main__":
        
     # Load 9 samples
-    train_loader, _ = get_train_valid_loader(30)
+    _, _, train_loader = get_data_loader(30)
  
     # Create the iterator
     train_loader = iter(train_loader)
@@ -101,4 +103,4 @@ if __name__ == "__main__":
     images, labels = train_loader.next()
 
     # Plot the batch
-    plot_images(images[0], labels)
+    plot_images(images, labels)

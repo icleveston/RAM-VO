@@ -2,23 +2,24 @@ import os
 import time
 import shutil
 import pickle
+import argparse
 import torch
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 from model import RecurrentAttention
 from utils import AverageMeter, denormalize
-from data_loader import get_train_valid_loader, get_test_loader
+from data_loader import get_data_loader
 
 
 class Main:
     
-    def __init__(self, train=True):
+    def __init__(self, test=None, resume=None):
         
         # Glimpse Network Params
         self.patch_size = 4 # size of extracted patch at highest res
         self.glimpse_scale = 2 # scale of successive patches
-        self.num_patches = 4 # number of downscaled patches per glimpse
+        self.num_patches = 3 # number of downscaled patches per glimpse
         self.loc_hidden = 128 # hidden size of loc fc
         self.glimpse_hidden = 128 # hidden size of glimpse fc
 
@@ -32,6 +33,7 @@ class Main:
         
         # Data Params
         self.valid_size = 0.1 # Proportion of training set used for validation
+        self.test_size = 0.05 # Proportion of training set used for test
         self.batch_size = 128 # number of images in each batch of data
         self.num_workers = 4 # number of subprocesses to use for data loading
         self.shuffle = True # Whether to shuffle the train and valid indices
@@ -50,34 +52,11 @@ class Main:
         self.use_gpu = True # Whether to run on the GPU
         self.random_seed = 1 # Seed to ensure reproducibility
         self.best = True # Load best model or most recent for testing
-        self.resume = False # Whether to resume training from checkpoint
         self.print_freq = 10 # How frequently to print training details
         self.num_workers = 4
         self.pin_memory = False
         self.best_valid_acc = 0.0
         self.counter = 0
-        
-        # Set the folder time for each execution
-        folder_time = time.strftime("%Y_%m_%d_%H_%M_%S")
-
-        # Set the model name
-        self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}x{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
-
-        # Set the folders
-        self.output_path = f"out/{self.model_name}/"
-        self.checkpoint_path = f"{self.output_path}/checkpoint/"
-        self.glimpse_path = f"{self.output_path}/glimpse/"
-        self.loss_path = f"{self.output_path}/loss/"
-        
-        # Create the folders
-        if not os.path.exists(self.output_path):
-            os.makedirs(self.output_path)
-        if not os.path.exists(self.checkpoint_path):
-            os.makedirs(self.checkpoint_path)
-        if not os.path.exists(self.glimpse_path):
-            os.makedirs(self.glimpse_path)
-        if not os.path.exists(self.loss_path):
-            os.makedirs(self.loss_path)
         
         # Set the seed
         torch.manual_seed(self.random_seed)
@@ -95,7 +74,7 @@ class Main:
         else:
             self.device = torch.device("cpu")
 
-        print("\n[*] Device: " + str(self.device))
+        print(f"\n[*] Device: {self.device}")
         
         # Build the model
         self.model = RecurrentAttention(
@@ -119,36 +98,80 @@ class Main:
         # Start the scheduler
         self.scheduler = ReduceLROnPlateau(self.optimizer, "min", patience=self.lr_patience)
            
-        if train:
+        # Set the data loader
+        self.train_loader, self.valid_loader, self.test_loader = get_data_loader(
+            self.batch_size,
+            self.valid_size,
+            self.test_size,
+            self.random_seed,
+            self.num_workers,
+            self.pin_memory
+        )
+        
+        self.num_train = len(self.train_loader.sampler)
+        self.num_valid = len(self.valid_loader.sampler)
+        self.num_test = len(self.test_loader.sampler)
             
-            # Set the data loader
-            data_loader = get_train_valid_loader(
-                self.batch_size,
-                self.valid_size,
-                self.num_workers,
-                self.pin_memory
-            )
+        # Execute the training or testing
+        if test is None:
             
-            self.train_loader = data_loader[0]
-            self.valid_loader = data_loader[1]
-            self.num_train = len(self.train_loader.sampler)
-            self.num_valid = len(self.valid_loader.sampler)
+            # Should resume the train
+            if resume is None:
+                
+                # Set the folder time for each execution
+                folder_time = time.strftime("%Y_%m_%d_%H_%M_%S")
+
+                # Set the model name
+                self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}x{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
+
+                # Set the folders
+                self.output_path = os.path.join('out', self.model_name)
+                self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
+                self.glimpse_path = os.path.join(self.output_path, 'glimpse')
+                self.loss_path = os.path.join(self.output_path, 'loss')
+                
+                # Create the folders
+                if not os.path.exists(self.output_path):
+                    os.makedirs(self.output_path)
+                if not os.path.exists(self.checkpoint_path):
+                    os.makedirs(self.checkpoint_path)
+                if not os.path.exists(self.glimpse_path):
+                    os.makedirs(self.glimpse_path)
+                if not os.path.exists(self.loss_path):
+                    os.makedirs(self.loss_path)
             
-            # Start the train
+            else:
+                
+                # Set the model to be loaded
+                self.model_name = resume
+                
+                # Set the folders
+                self.output_path = os.path.join('out', self.model_name)
+                self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
+                self.glimpse_path = os.path.join(self.output_path, 'glimpse')
+                self.loss_path = os.path.join(self.output_path, 'loss')
+                
+                # Load the model
+                self._load_checkpoint(best=False)            
+            
+            print(f"[*] Output Folder: {self.model_name}")
+            
             self.train()
-             
+            
         else:
             
-            data_loader = get_test_loader(
-                self.batch_size,
-                self.num_workers,
-                self.pin_memory
-            )
+            # Set the model to load
+            self.model_name = test
             
-            self.test_loader = data_loader
-            self.num_test = len(self.test_loader.dataset)
+            # Set the folders
+            self.output_path = os.path.join('out', self.model_name)
+            self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
+            self.glimpse_path = os.path.join(self.output_path, 'glimpse')
+            self.loss_path = os.path.join(self.output_path, 'loss')
             
-            # Start the test
+            # Load the model
+            self._load_checkpoint(best=True)  
+            
             self.test()            
 
     def train(self):
@@ -158,10 +181,6 @@ class Main:
         and if the validation accuracy is improved upon,
         a separate ckpt is created for use on the test set.
         """
-        # load the most recent checkpoint
-        if self.resume:
-            self.load_checkpoint(best=False)
-
         print(f"[*] Train on {self.num_train} samples, validate on {self.num_valid} samples")
 
         # For each epoch
@@ -173,7 +192,7 @@ class Main:
             print(f"\nEpoch: {epoch+1}/{self.epochs} - LR: {current_lr}")
 
             # Train one epoch
-            train_loss, train_acc = self.train_one_epoch(epoch)
+            train_loss, train_acc = self._train_one_epoch(epoch)
 
             # Validate one epoch
             valid_loss, valid_acc = self.validate(epoch)
@@ -202,7 +221,7 @@ class Main:
             self.best_valid_acc = max(valid_acc, self.best_valid_acc)
             
             # Save the checkpoint for each epoch
-            self.save_checkpoint({
+            self._save_checkpoint({
                     "epoch": epoch + 1,
                     "model_state": self.model.state_dict(),
                     "optim_state": self.optimizer.state_dict(),
@@ -210,7 +229,7 @@ class Main:
                 }, is_best
             )
 
-    def train_one_epoch(self, epoch):
+    def _train_one_epoch(self, epoch):
         """
         Train the model for 1 epoch of the training set.
 
@@ -259,7 +278,7 @@ class Main:
                 predicted = None
                 
                 # Reset the model parameters
-                h_state, c_state, l_t_0, l_t_1 = self.reset()
+                h_state, c_state, l_t_0, l_t_1 = self._reset()
                 
                 # For each glimpse
                 for t in range(self.num_glimpses):
@@ -408,7 +427,7 @@ class Main:
             predicted = None
             
             # Reset the model parameters
-            h_state, c_state, l_t_0, l_t_1 = self.reset()
+            h_state, c_state, l_t_0, l_t_1 = self._reset()
             
             # For each glimpse
             for t in range(self.num_glimpses):
@@ -474,27 +493,34 @@ class Main:
         end once the model has finished training.
         """
         correct = 0
-
-        # load the best checkpoint
-        self.load_checkpoint(best=self.best)
+        
+        print(f"[*] Test on {self.num_test} samples")
 
         for i, (x, y) in enumerate(self.test_loader):
-            x, y = x.to(self.device), y.to(self.device)
+          
+            # Convert the data to float
+            dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
+            y = y.type(dtype)
 
-            # duplicate M times
-            x = x.repeat(self.M, 1, 1, 1)
+            # Set data to the respected device
+            x_0, x_1, y = x[0].to(self.device), x[1].to(self.device), y.to(self.device)
 
             # initialize location vector and hidden state
-            self.batch_size = x.shape[0]
-            h_t, l_t = self.reset()
+            self.batch_size = x_0.shape[0]
+            
+            # Reset the model parameters
+            h_state, c_state, l_t_0, l_t_1 = self._reset()
+                
+            log_probas = None
 
-            # extract the glimpses
-            for t in range(self.num_glimpses - 1):
-                # forward pass through model
-                h_t, l_t, b_t, p = self.model(x, l_t, h_t)
-
-            # last iteration
-            h_t, l_t, b_t, log_probas, p = self.model(x, l_t, h_t, last=True)
+            # For each glimpse
+            for t in range(self.num_glimpses):
+                
+                # Get the prediction on the last glimpse
+                is_last = t==self.num_glimpses-1
+                
+                # Call the model
+                h_state, l_t_0, l_t_1, b_t, log_probas, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
 
             log_probas = log_probas.view(self.M, -1, log_probas.shape[-1])
             log_probas = torch.mean(log_probas, dim=0)
@@ -502,15 +528,12 @@ class Main:
             pred = log_probas.data.max(1, keepdim=True)[1]
             correct += pred.eq(y.data.view_as(pred)).cpu().sum()
 
-        perc = (100.0 * correct) / (self.num_test)
+        perc = (100.0*correct)/(self.num_test)
         error = 100 - perc
-        print(
-            "[*] Test Acc: {}/{} ({:.2f}% - {:.2f}%)".format(
-                correct, self.num_test, perc, error
-            )
-        )
+        
+        print("[*] Test Acc: {}/{} ({:.2f}% - {:.2f}%)".format(correct, self.num_test, perc, error))
 
-    def reset(self):
+    def _reset(self):
         
         h_t = torch.zeros(
             self.batch_size,
@@ -544,7 +567,7 @@ class Main:
 
         return h_t, c_state, l_t_0, l_t_1
 
-    def save_checkpoint(self, state, is_best):
+    def _save_checkpoint(self, state, is_best):
         """Saves a checkpoint of the model.
 
         If this model has reached the best validation accuracy thus
@@ -565,7 +588,7 @@ class Main:
             # Copy the checkpoint to the best model
             shutil.copyfile(ckpt_path, os.path.join(self.checkpoint_path, filename))
 
-    def load_checkpoint(self, best=False):
+    def _load_checkpoint(self, best=False):
         """Load the best copy of a model.
 
         This is useful for 2 cases:
@@ -604,8 +627,29 @@ class Main:
         else:
             print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch}")
 
+def str2bool(v):
+    if isinstance(v, bool):
+       return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def parse_arguments():
+    
+    arg = argparse.ArgumentParser()
+    arg.add_argument("--test", type=str, required=False, help="should train or test")
+    arg.add_argument("--resume", type=str, required=False, help="should resume the train")
+    
+    args = vars(arg.parse_args())
+    
+    return args["test"], args["resume"]
 
 if __name__ == "__main__":
     
-    main = Main(train=True)
+    args = parse_arguments()
+
+    main = Main(*args)
     

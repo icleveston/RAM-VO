@@ -156,7 +156,7 @@ class Retina:
         # resize the patches to squares of size patch_size
         for i in range(1, len(phi)):
             k = phi[i].shape[-1] // self.patch_size
-            phi[i] = F.max_pool2d(phi[i], k)
+            phi[i] = F.avg_pool2d(phi[i], k)
 
         # concatenate into a single tensor and flatten
         phi = torch.cat(phi, 1)
