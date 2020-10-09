@@ -68,6 +68,7 @@ def main(plot_dir, epoch):
 
     # Create the plots
     fig, axs = plt.subplots(nrows=1, ncols=2)
+    fig.tight_layout()
     fig.set_dpi(300)
 
     def updateData(i):
