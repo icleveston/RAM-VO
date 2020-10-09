@@ -311,6 +311,7 @@ class Main:
                 
                 # Denormalize the predictions
                 predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
+
                 
                 loss_mse = torch.nn.MSELoss()
                 loss_l1 = torch.nn.L1Loss()
