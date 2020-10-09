@@ -3,12 +3,13 @@ import time
 import shutil
 import pickle
 import argparse
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 from model import RecurrentAttention
-from utils import AverageMeter, denormalize, denormalize_displacement, count_parameters
+from utils import *
 from data_loader import get_data_loader
 
 
@@ -157,6 +158,9 @@ class Main:
             
             # Print the model info
             count_parameters(self.model, print_table=False)
+            
+            # Save the configuration as image
+            self._save_config()
             
             self.train()
             
@@ -637,6 +641,19 @@ class Main:
             print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch} with best valid mse of {self.best_valid_acc}")
         else:
             print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch}")
+            
+            
+    def _save_config(self):
+    
+        df = pd.DataFrame()
+        df['date'] = ['2016-04-01', '2016-04-02', '2016-04-03']
+        df['calories'] = [2200, 2100, 1500]
+        df['sleep hours'] = [2200, 2100, 1500]
+        df['gym'] = [True, False, False]
+        
+        # Save the table
+        render_table(df, self.output_path, 'config.jpg')
+        
 
 def str2bool(v):
     if isinstance(v, bool):

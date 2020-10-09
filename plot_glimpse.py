@@ -129,11 +129,14 @@ def main(plot_dir, epoch):
     
     # Create the animation
     anim = animation.FuncAnimation(
-        fig, updateData, frames=num_glimpses*5, interval=500, repeat=True
+        fig, updateData, frames=num_glimpses*5, interval=500, repeat=True, blit=True
     )
 
     # Save the video file
-    anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
+    if True:
+        anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.gif"), writer='imagemagick', fps=60)
+    else:
+        anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
 
 
 if __name__ == "__main__":
