@@ -54,9 +54,9 @@ def get_data_loader(
     valid_idx, test_idx, train_idx = indices[:split_valid], indices[split_valid:split_test], indices[split_test:]
 
     # Define the subsampler for the dataset
-    train_sampler = SubsetRandomSampler(train_idx)
-    valid_sampler = SubsetRandomSampler(valid_idx)
-    test_sampler = SubsetRandomSampler(test_idx)
+    train_sampler = SequentialSampler(train_idx)
+    valid_sampler = SequentialSampler(valid_idx)
+    test_sampler = SequentialSampler(test_idx)
 
     train_loader = DataLoader(
         dataset,
@@ -87,7 +87,7 @@ def get_data_loader(
 
 if __name__ == "__main__":
        
-    # Load 9 samples
+    # Load the samples
     train_loader, _, _ = get_data_loader(3)
  
     # Create the iterator

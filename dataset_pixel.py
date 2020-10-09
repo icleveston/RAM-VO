@@ -40,7 +40,7 @@ class PixelSkipped100Dataset(Dataset):
         self.length = len(self.content)-2
 
     def __len__(self):
-        return self.length // 2
+        return self.length
 
     def __getitem__(self, idx):
         
@@ -94,7 +94,7 @@ class PixelSkipped25Dataset(Dataset):
         self.length = len(self.content)-2
 
     def __len__(self):
-        return self.length // 2
+        return self.length
 
     def __getitem__(self, idx):
         
