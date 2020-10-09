@@ -3,13 +3,34 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
+import torch
 from PIL import Image
+from prettytable import PrettyTable
 
+
+def count_parameters(model, print_table=False):
+    
+    table = PrettyTable(["Modules", "Parameters"])
+    total_params = 0
+    
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        param = parameter.numel()
+        table.add_row([name, param])
+        total_params+=param
+    
+    if print_table:
+        print(table)
+        
+    print(f"[*] Total Trainable Params: {total_params}")
+    
+    return total_params
 
 def denormalize(T, coords):
     return 0.5 * ((coords + 1.0) * T)
 
+def denormalize_displacement(l, scale=10):
+    return l*scale
 
 def bounding_box(x, y, size, color="w"):
     x = int(x - (size / 2))
@@ -106,27 +127,45 @@ def array2img(x):
 
 def plot_images(images, gd_truth):
     
-    # Convert x to numpy
-    X_0 = images[0].numpy()
-    X_1 = images[1].numpy()
-
-    X_0 = X_0.squeeze()
-    X_1 = X_1.squeeze()
-    
-    assert len(X_0) == len(gd_truth) and len(X_1) == len(gd_truth)
-
     # Create figure with sub-plots.
-    fig, axes = plt.subplots(3, 5)
+    fig, axes = plt.subplots(1, 2)
 
-    for i, ax in enumerate(axes.flat):
-        
-        # plot the image
-        ax.imshow(X_0[i], cmap="Greys_r")
+    image_0 = images[0][0].T
+    image_1 = images[1][0].T
 
-        xlabel = "{}".format(gd_truth[i])
-        ax.set_xlabel(xlabel)
-        ax.set_xticks([])
-        ax.set_yticks([])
+    # plot the image
+    axes[0].imshow(image_0, cmap="Greys_r")
+    axes[1].imshow(image_1, cmap="Greys_r")
+
+    xlabel = "Displacement: {}".format(str(gd_truth[0]))
+    axes[1].set_xlabel(xlabel)
+   
+    major_ticks = np.arange(0, 100, 5)
+    minor_ticks = np.arange(0, 100, 1)
+
+    axes[0].set_xticks(major_ticks)
+    axes[0].set_xticks(minor_ticks, minor=True)
+    axes[0].set_yticks(major_ticks)
+    axes[0].set_yticks(minor_ticks, minor=True)
+    axes[1].set_xticks(major_ticks)
+    axes[1].set_xticks(minor_ticks, minor=True)
+    axes[1].set_yticks(major_ticks)
+    axes[1].set_yticks(minor_ticks, minor=True)
+
+    # And a corresponding grid
+    axes[0].grid(which='both')
+    axes[1].grid(which='both')
+
+    # Or if you want different settings for the grids:
+    axes[0].grid(which='minor', alpha=0.5)
+    axes[0].grid(which='major', alpha=0.8)
+    axes[1].grid(which='minor', alpha=0.5)
+    axes[1].grid(which='major', alpha=0.8)
+    
+    axes[0].set_xlim(1, 99)
+    axes[0].set_ylim(1, 99)
+    axes[1].set_xlim(1, 99)
+    axes[1].set_ylim(1, 99)
 
     plt.show()
 

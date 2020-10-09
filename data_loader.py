@@ -2,7 +2,7 @@ import numpy as np
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from torch.utils.data import DataLoader
-from dataset_pixel import PixelUniformDataset, PixelSkippedDataset
+from dataset_pixel import PixelUniformDataset, PixelSkipped100Dataset
 from dataset_ball import BallDataset
 from utils import plot_images
 
@@ -11,9 +11,7 @@ def get_data_loader(
     batch_size,
     valid_size=0.2,
     test_size=0.1,
-    random_seed=1,
     num_workers=4,
-    shuffle=True,
     pin_memory=False
 ):
     """Get the data loaders.
@@ -25,7 +23,6 @@ def get_data_loader(
         valid_size: percentage split of the training set used for
             the validation set. Should be a float in the range [0, 1].
             In the paper, this number is set to 0.1.
-        shuffle: whether to shuffle the train/validation indices.
         num_workers: number of subprocesses to use when loading the dataset.
         pin_memory: whether to copy tensors into CUDA pinned memory. Set it to
             True if using GPU.
@@ -42,7 +39,8 @@ def get_data_loader(
 
     # Call the dataset
     #dataset = PixelUniformDataset(trans=trans)
-    dataset = PixelSkippedDataset(trans=trans)
+    #dataset = PixelSkipped25Dataset(trans=trans)
+    dataset = PixelSkipped100Dataset(trans=trans)
     #dataset = BallDataset(trans=trans)
 
     # Get the dataset size
@@ -51,10 +49,6 @@ def get_data_loader(
     # Get the indexes for validation and test
     split_valid = int(np.floor(valid_size * len(dataset)))
     split_test = split_valid + int(np.floor(test_size * len(dataset)))
-    
-    if shuffle:
-        np.random.seed(random_seed)
-        np.random.shuffle(indices)
 
     # Split the dataset
     valid_idx, test_idx, train_idx = indices[:split_valid], indices[split_valid:split_test], indices[split_test:]
@@ -94,7 +88,7 @@ def get_data_loader(
 if __name__ == "__main__":
        
     # Load 9 samples
-    _, _, train_loader = get_data_loader(30)
+    train_loader, _, _ = get_data_loader(3)
  
     # Create the iterator
     train_loader = iter(train_loader)

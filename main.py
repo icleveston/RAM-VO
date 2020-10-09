@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 from model import RecurrentAttention
-from utils import AverageMeter, denormalize
+from utils import AverageMeter, denormalize, denormalize_displacement, count_parameters
 from data_loader import get_data_loader
 
 
@@ -17,14 +17,14 @@ class Main:
     def __init__(self, test=None, resume=None):
         
         # Glimpse Network Params
-        self.patch_size = 4 # size of extracted patch at highest res
+        self.patch_size = 16 # size of extracted patch at highest res
         self.glimpse_scale = 2 # scale of successive patches
         self.num_patches = 3 # number of downscaled patches per glimpse
         self.loc_hidden = 128 # hidden size of loc fc
         self.glimpse_hidden = 128 # hidden size of glimpse fc
 
         # Core Network Params
-        self.num_glimpses = 6 # number of glimpses, i.e. BPTT iterations
+        self.num_glimpses = 4 # number of glimpses, i.e. BPTT iterations
         self.hidden_size = 512 # hidden size of rnn
 
         # Reinforce Params
@@ -55,7 +55,7 @@ class Main:
         self.print_freq = 10 # How frequently to print training details
         self.num_workers = 4
         self.pin_memory = False
-        self.best_valid_acc = 0.0
+        self.best_valid_acc = 10000000.0
         self.counter = 0
         
         # Set the seed
@@ -103,7 +103,6 @@ class Main:
             self.batch_size,
             self.valid_size,
             self.test_size,
-            self.random_seed,
             self.num_workers,
             self.pin_memory
         )
@@ -122,7 +121,7 @@ class Main:
                 folder_time = time.strftime("%Y_%m_%d_%H_%M_%S")
 
                 # Set the model name
-                self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}x{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
+                self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
 
                 # Set the folders
                 self.output_path = os.path.join('out', self.model_name)
@@ -156,6 +155,9 @@ class Main:
             
             print(f"[*] Output Folder: {self.model_name}")
             
+            # Print the model info
+            count_parameters(self.model, print_table=False)
+            
             self.train()
             
         else:
@@ -170,7 +172,10 @@ class Main:
             self.loss_path = os.path.join(self.output_path, 'loss')
             
             # Load the model
-            self._load_checkpoint(best=True)  
+            self._load_checkpoint(best=False)  
+            
+            # Print the model info
+            count_parameters(self.model, print_table=False)
             
             self.test()            
 
@@ -192,18 +197,18 @@ class Main:
             print(f"\nEpoch: {epoch+1}/{self.epochs} - LR: {current_lr}")
 
             # Train one epoch
-            train_loss, train_acc = self._train_one_epoch(epoch)
+            train_loss, train_mse, train_mae = self._train_one_epoch(epoch)
 
             # Validate one epoch
-            valid_loss, valid_acc = self.validate(epoch)
+            valid_loss, valid_mse, valid_mae = self.validate(epoch)
 
             # Reduce lr if validation loss plateaus
-            self.scheduler.step(-valid_acc)
+            self.scheduler.step(valid_mae)
 
             # Check if it is the best model
-            is_best = valid_acc > self.best_valid_acc
+            is_best = valid_mse < self.best_valid_acc
             
-            msg = "train loss: {:.3f} - train acc: {:.3f} | val loss: {:.3f} - val acc: {:.3f}"
+            msg = "train loss: {:.3f}, mse: {:.3f}, mae: {:.3f} | val loss: {:.3f}, mse: {:.3f}, mae: {:.3f}"
             
             # Check for improvement
             if is_best:
@@ -212,13 +217,13 @@ class Main:
             else:
                 self.counter += 1
             
-            print(msg.format(train_loss, train_acc, valid_loss, valid_acc))
+            print(msg.format(train_loss, train_mse, train_mae, valid_loss, valid_mse, valid_mae))
                 
             #if self.counter > self.train_patience:
             #    print("[!] No improvement in a while, stopping training.")
             #    return
             
-            self.best_valid_acc = max(valid_acc, self.best_valid_acc)
+            self.best_valid_acc = min(valid_mse, self.best_valid_acc)
             
             # Save the checkpoint for each epoch
             self._save_checkpoint({
@@ -243,14 +248,17 @@ class Main:
         
         batch_time = AverageMeter()
         losses = AverageMeter()
-        accs = AverageMeter()
+        mse_bar = AverageMeter()
+        mae_bar = AverageMeter()
         
         # Store the losses array
         loss_action_array = []
         loss_baseline_array = []
         loss_reinforce_0_array = []
         loss_reinforce_1_array = []
-        accuracy_array = []
+        mse_array = []
+        mae_array = []
+        reward_array = []
 
         tic = time.time()
         with tqdm(total=self.num_train) as pbar:
@@ -260,10 +268,6 @@ class Main:
                 
                 self.optimizer.zero_grad()
                 
-                # Convert the data to float
-                dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
-                y = y.type(dtype)
-
                 # Set data to the respected device
                 x_0, x_1, y = x[0].to(self.device), x[1].to(self.device), y.to(self.device)
 
@@ -306,44 +310,49 @@ class Main:
                 log_pi_1 = torch.stack(log_pi_1).transpose(1, 0)
                 
                 # Denormalize the predictions
-                pred = torch.stack([denormalize(8, l) for l in predicted])
+                predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
                 
-                loss = torch.nn.MSELoss()
+                loss_mse = torch.nn.MSELoss()
+                loss_l1 = torch.nn.L1Loss()
                 
                 # Compute the reward based on L1 norm
-                R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(pred.detach(), y)]).to(self.device))
+                R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(predicted_denormalized.detach(), y)]).to(self.device))
                 
                 R = R.unsqueeze(1).repeat(1, self.num_glimpses)
                     
                 # Compute losses for differentiable modules
-                loss_action = loss(predicted, y)
-                loss_baseline = loss(baselines, R)
+                loss_action = loss_mse(predicted_denormalized, y)
+                loss_baseline = loss_mse(baselines, R)
 
                 # Compute reinforce loss, summed over timesteps and averaged across batch
                 adjusted_reward = R - baselines.detach()
 
                 loss_reinforce_0 = torch.sum(-log_pi_0 * adjusted_reward, dim=1)
-                loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 0.01
+                loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 0.1
             
                 loss_reinforce_1 = torch.sum(-log_pi_1 * adjusted_reward, dim=1)
-                loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 0.01
+                loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 0.1
 
                 # Join the losses
-                loss = loss_action + loss_baseline + loss_reinforce_0  + loss_reinforce_1
+                loss = loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1
 
                 # Get the mse
                 mse = loss_action
+                mae = loss_l1(predicted_denormalized.detach(), y)
                 
-                # Store the losses and accuracy
+                # Store the losses
                 loss_action_array.append(loss_action.cpu().data.numpy())
                 loss_baseline_array.append(loss_baseline.cpu().data.numpy())
                 loss_reinforce_0_array.append(loss_reinforce_0.cpu().data.numpy())
                 loss_reinforce_1_array.append(loss_reinforce_1.cpu().data.numpy())
-                accuracy_array.append(mse.cpu().data.numpy())
+                mse_array.append(mse.cpu().data.numpy())
+                mae_array.append(mae.cpu().data.numpy())
+                reward_array.append(torch.mean(torch.sum(R, dim=1), dim=0).data.numpy())
 
                 # Store the loss and metric
                 losses.update(loss.item(), x_0.size()[0])
-                accs.update(mse.item(), x_0.size()[0])
+                mse_bar.update(mse.item(), x_0.size()[0])
+                mae_bar.update(mae.item(), x_0.size()[0])
 
                 # Compute gradients and update SGD
                 loss.backward()
@@ -354,7 +363,7 @@ class Main:
                 batch_time.update(toc - tic)
 
                 # Set the var description
-                pbar.set_description(("{:.1f}s - loss: {:.3f} - mse: {:.3f}".format((toc-tic), loss.item(), mse.item())))
+                pbar.set_description(("{:.1f}s - loss: {:.3f}, mse: {:.3f}, mae: {:.3f}".format((toc-tic), loss.item(), mse.item(), mae.item())))
                 
                 # Update the bar
                 pbar.update(self.batch_size)
@@ -372,37 +381,32 @@ class Main:
                     data = ((img_0, loc_0), (img_1, loc_1))
                     
                     # Dump the glimpses
-                    with open(self.glimpse_path + f"glimpses_epoch_{epoch+1}.p", "wb") as f:
+                    with open(os.path.join(self.glimpse_path, f"glimpses_epoch_{epoch+1}.p"), "wb") as f:
                         pickle.dump(data, f)
 
             # Dump the loss
-            with open(self.loss_path + f"loss_epoch_{epoch+1}.p", "wb") as f:
+            with open(os.path.join(self.loss_path, f"loss_epoch_{epoch+1}.p"), "wb") as f:
                 
-                data = (accuracy_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
+                data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
                 
                 pickle.dump(data, f)
 
-            return losses.avg, accs.avg
+            return losses.avg, mse_bar.avg, mae_bar.avg
 
     @torch.no_grad()
     def validate(self, epoch):
         """Evaluate the RAM model on the validation set.
         """
         losses = AverageMeter()
-        accs = AverageMeter()
+        mse_bar = AverageMeter()
+        mae_bar = AverageMeter()
 
         for i, (x, y) in enumerate(self.valid_loader):
                 
             self.optimizer.zero_grad()
             
-            # Convert the data to float
-            dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
-            x_0 = x[0].type(dtype) 
-            x_1 = x[1].type(dtype) 
-            y = y.type(dtype)
-
             # Set data to the respected device
-            x_0, x_1, y = x_0.to(self.device), x_1.to(self.device), y.to(self.device)
+            x_0, x_1, y = x[0].to(self.device), x[1].to(self.device), y.to(self.device)
 
             # initialize location vector and hidden state
             self.batch_size = x_0.shape[0]
@@ -443,18 +447,19 @@ class Main:
             log_pi_1 = torch.stack(log_pi_1).transpose(1, 0)
             
             # Denormalize the predictions
-            pred = torch.stack([denormalize(8, l) for l in predicted])
+            predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
             
-            loss = torch.nn.MSELoss()
+            loss_mse = torch.nn.MSELoss()
+            loss_l1 = torch.nn.L1Loss()
             
             # Compute the reward based on L1 norm
-            R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(pred.detach(), y)]).to(self.device))
+            R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(predicted_denormalized.detach(), y)]).to(self.device))
             
             R = R.unsqueeze(1).repeat(1, self.num_glimpses)
                 
             # Compute losses for differentiable modules
-            loss_action = loss(predicted, y)
-            loss_baseline = loss(baselines, R)
+            loss_action = loss_mse(predicted_denormalized, y)
+            loss_baseline = loss_mse(baselines, R)
 
             # Compute reinforce loss, summed over timesteps and averaged across batch
             adjusted_reward = R - baselines.detach()
@@ -470,12 +475,14 @@ class Main:
 
             # Get the mse
             mse = loss_action
+            mae = loss_l1(predicted_denormalized.detach(), y)
 
             # Store the loss and metric
             losses.update(loss.item(), x_0.size()[0])
-            accs.update(mse.item(), x_0.size()[0])
+            mse_bar.update(mse.item(), x_0.size()[0])
+            mae_bar.update(mae.item(), x_0.size()[0])
 
-        return losses.avg, accs.avg
+        return losses.avg, mse_bar.avg, mae_bar.avg
 
     @torch.no_grad()
     def test(self):
@@ -484,15 +491,16 @@ class Main:
         This function should only be called at the very
         end once the model has finished training.
         """
-        correct = 0
+        mse_all = []
+        mae_all = []
+        samples = []
         
         print(f"[*] Test on {self.num_test} samples")
+        
+        loss_mse = torch.nn.MSELoss()
+        loss_l1 = torch.nn.L1Loss()
 
         for i, (x, y) in enumerate(self.test_loader):
-          
-            # Convert the data to float
-            dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor 
-            y = y.type(dtype)
 
             # Set data to the respected device
             x_0, x_1, y = x[0].to(self.device), x[1].to(self.device), y.to(self.device)
@@ -502,8 +510,8 @@ class Main:
             
             # Reset the model parameters
             h_state, c_state, l_t_0, l_t_1 = self._reset()
-                
-            log_probas = None
+
+            predicted = None
 
             # For each glimpse
             for t in range(self.num_glimpses):
@@ -512,18 +520,28 @@ class Main:
                 is_last = t==self.num_glimpses-1
                 
                 # Call the model
-                h_state, l_t_0, l_t_1, b_t, log_probas, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
 
-            log_probas = log_probas.view(self.M, -1, log_probas.shape[-1])
-            log_probas = torch.mean(log_probas, dim=0)
-
-            pred = log_probas.data.max(1, keepdim=True)[1]
-            correct += pred.eq(y.data.view_as(pred)).cpu().sum()
-
-        perc = (100.0*correct)/(self.num_test)
-        error = 100 - perc
+            # Denormalize the predictions
+            predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
+            
+            # Save the first prediction for the each batch
+            samples.append([x_0[0], x_1[0], y[0].data, predicted_denormalized[0].data])
+            
+            # Compute the losses
+            mse = loss_mse(predicted_denormalized.detach(), y)
+            mae = loss_l1(predicted_denormalized.detach(), y)
+            
+            mse_all.append(mse.data.cpu().numpy())
+            mae_all.append(mae.data.cpu().numpy())
+       
+        mse_all = sum(mse_all)/len(mse_all)
+        mae_all = sum(mae_all)/len(mae_all)
         
-        print("[*] Test Acc: {}/{} ({:.2f}% - {:.2f}%)".format(correct, self.num_test, perc, error))
+        print(f"[*] Test MSE: {mse_all} - MAE: {mae_all}")
+        
+        for e in samples:
+            print(f"Predicted: {e[3]} - Ground-truth: {e[2]}")
 
     def _reset(self):
         
@@ -615,7 +633,7 @@ class Main:
         self.optimizer.load_state_dict(checkpoint["optim_state"])
 
         if best:
-            print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch} with best valid acc of {self.best_valid_acc}")
+            print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch} with best valid mse of {self.best_valid_acc}")
         else:
             print(f"[*] Loaded {filename} checkpoint @ epoch {self.start_epoch}")
 

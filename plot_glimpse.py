@@ -51,9 +51,9 @@ def main(plot_dir, epoch):
 
     # Get the parameters
     num_glimpses = int(parameters[1])
-    patch_size = int(parameters[2][0])
-    num_patches = int(parameters[3][0])
-    glimpse_scale = int(parameters[4][0])
+    patch_size = int(parameters[2])
+    num_patches = int(parameters[3])
+    glimpse_scale = int(parameters[4])
     img_shape = np.shape(img_0)[2]
     
     # Denormalize coordinates
@@ -133,7 +133,7 @@ def main(plot_dir, epoch):
     )
 
     # Save the video file
-    anim.save(os.path.join("out", plot_dir, 'glimpse', f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
+    anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
 
 
 if __name__ == "__main__":

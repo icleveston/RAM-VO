@@ -19,18 +19,23 @@ def parse_arguments():
     arg = argparse.ArgumentParser()
     arg.add_argument("--data_dir", type=str, required=True, help="path to the output execution")
     arg.add_argument("--minibatch", type=str2bool, default=False, help="plot the losses by mini batch")
+    arg.add_argument("--save", type=str2bool, default=False, help="save the plot")
     
     args = vars(arg.parse_args())
     
-    return args["data_dir"], args["minibatch"]
+    return args["data_dir"], args["minibatch"], args["save"]
 
 
-def main(data_dir, minibatch):
+def main(data_dir, minibatch, save):
+        
+    basepath = os.path.join("out", data_dir, "loss")
         
     # Count the files inside the folder
-    count_files = len(next(os.walk(os.path.join("out", data_dir, "loss")))[2])
+    count_files = len(next(os.walk(basepath))[2])
     
-    accuracy_array = []
+    mse_array = []
+    mae_array = []
+    reward_array = []
     loss_action_array = []
     loss_baseline_array = []
     loss_reinforce_0_array = []
@@ -51,20 +56,24 @@ def main(data_dir, minibatch):
         losses = map(np.asarray, losses)
         
         # Unpack the losses
-        accuracy, loss_action, loss_baseline, loss_reinforce_0, loss_reinforce_1 = losses
+        mse, mae, reward, loss_action, loss_baseline, loss_reinforce_0, loss_reinforce_1 = losses
         
         if interations is None:
-            interations = len(accuracy)
+            interations = len(mse)
             
         if not minibatch:
-            accuracy = np.array(accuracy.sum()/interations)
+            mse = np.array(mse.sum()/interations)
+            mae = np.array(mae.sum()/interations)
+            reward = np.array(reward.sum()/interations)
             loss_action = np.array(loss_action.sum()/interations)
             loss_baseline = np.array(loss_baseline.sum()/interations)
             loss_reinforce_0 = np.array(loss_reinforce_0.sum()/interations)
             loss_reinforce_1 = np.array(loss_reinforce_1.sum()/interations)
             
         # Concat the losses for all epochs
-        accuracy_array = np.concatenate((accuracy_array, accuracy), axis=None)
+        mse_array = np.concatenate((mse_array, mse), axis=None)
+        mae_array = np.concatenate((mae_array, mae), axis=None)
+        reward_array = np.concatenate((reward_array, reward), axis=None)
         loss_action_array = np.concatenate((loss_action_array, loss_action), axis=None)
         loss_baseline_array = np.concatenate((loss_baseline_array, loss_baseline), axis=None)
         loss_reinforce_0_array = np.concatenate((loss_reinforce_0_array, loss_reinforce_0), axis=None)
@@ -72,14 +81,16 @@ def main(data_dir, minibatch):
         loss_all_array = np.concatenate((loss_all_array, [loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1]), axis=None)
     
     # Build the plot order array
-    plot_order_array = [accuracy_array, loss_all_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array]
+    plot_order_array = [mse_array, mae_array, reward_array, loss_all_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array]
     
     # Define the subplots titles
-    titles = ['Accuracy', 'Loss', 'Action Loss', 'Baseline Loss', 'Reinforce Loss 0', 'Reinforce Loss 1']
+    titles = ['MSE', 'MAE', 'Reward', 'All Losses', 'Action Loss (MSE)', 'Baseline Loss (MSE)', 'Reinforce Loss 0', 'Reinforce Loss 1']
 
     # Create the plots
-    fig, axs = plt.subplots(nrows=3, ncols=2)
-    fig.set_dpi(300)
+    fig, axs = plt.subplots(nrows=4, ncols=2)
+    fig.set_size_inches(15, 10)
+    fig.set_dpi(80)
+    fig.tight_layout()
     
     type_loss = 'Minibatch' if minibatch else 'Epoch'
     
@@ -94,7 +105,10 @@ def main(data_dir, minibatch):
         ax.set_title(titles[i])
         ax.grid(True)
     
-    plt.show()
+    if not save:
+        plt.show()
+    else:
+        plt.savefig(os.path.join("out", data_dir, 'loss.png'), orientation='landscape', dpi=80)
     
 if __name__ == "__main__":
     args = parse_arguments()

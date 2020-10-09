@@ -154,7 +154,7 @@ class Retina:
         # resize the patches to squares of size patch_size
         for i in range(1, len(phi)):
             k = phi[i].shape[-1] // self.patch_size
-            phi[i] = F.avg_pool2d(phi[i], k)
+            phi[i] = F.max_pool2d(phi[i], k) # avg_pool2d
 
         # concatenate into a single tensor and flatten
         phi = torch.cat(phi, 1)
@@ -249,35 +249,38 @@ class GlimpseNetwork(nn.Module):
     def __init__(self, hidden_glimpse, hidden_loc, patch_size, num_patches, glimpse_scale, num_channels):
         super().__init__()
 
+        # Create the retina
         self.retina = Retina(patch_size, num_patches, glimpse_scale)
 
-        # glimpse layer
+        # Glimpse layers
         D_in = num_patches * patch_size * patch_size * num_channels
-        
-        self.fc1 = nn.Linear(D_in, hidden_glimpse)
+        self.fc_phi_1 = nn.Linear(D_in, hidden_glimpse)
+        self.fc_phi_2 = nn.Linear(hidden_glimpse, hidden_glimpse)
+        self.fc_phi_3 = nn.Linear(hidden_glimpse, hidden_glimpse)
 
-        # location layer
-        D_in = 2
-        self.fc2 = nn.Linear(D_in, hidden_loc)
-
-        self.fc3 = nn.Linear(hidden_glimpse, (hidden_glimpse + hidden_loc)//2)
-        self.fc4 = nn.Linear(hidden_loc, (hidden_glimpse + hidden_loc)//2)
+        # Location layers
+        self.fc_l_1 = nn.Linear(2, hidden_loc)
+        self.fc_l_2 = nn.Linear(hidden_loc, hidden_loc)
+        self.fc_l_3 = nn.Linear(hidden_loc, hidden_loc)
 
     def forward(self, x, l_t_prev):
-        # generate glimpse phi from image x
+        
+        # Generate glimpse phi from image x
         phi = self.retina.foveate(x, l_t_prev)
 
-        # flatten location vector
+        phi_out_1 = F.relu(self.fc_phi_1(phi))
+        phi_out_2 = F.relu(self.fc_phi_2(phi_out_1))
+        phi_out_3 = self.fc_phi_3(phi_out_2)
+        
+        # Flatten location vector
         l_t_prev = l_t_prev.view(l_t_prev.size(0), -1)
+        
+        l_out_1 = F.relu(self.fc_l_1(l_t_prev))
+        l_out_2 = F.relu(self.fc_l_2(l_out_1))
+        l_out_3 = self.fc_l_3(l_out_2)
 
-        # feed phi and l to respective fc layers
-        phi_out = F.relu(self.fc1(phi))
-        l_out = F.relu(self.fc2(l_t_prev))
-
-        what = self.fc3(phi_out)
-        where = self.fc4(l_out)
-
-        g_t = F.relu(torch.cat((what, where), dim=1))
+        # Concat the location and glimpses
+        g_t = F.relu(torch.cat((phi_out_3, l_out_3), dim=1))
 
         return g_t
 
@@ -319,8 +322,11 @@ class CoreNetwork(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
         
-        self.i2h = nn.Linear(input_size, hidden_size//2)
-        self.h2h = nn.Linear(hidden_size, hidden_size//2)
+        self.i2h_1 = nn.Linear(input_size, hidden_size)
+        self.i2h_2 = nn.Linear(hidden_size, hidden_size//2)
+        
+        self.h2h_1 = nn.Linear(hidden_size, hidden_size)
+        self.h2h_2 = nn.Linear(hidden_size, hidden_size//2)
         
         #self.rnn = []
         
@@ -333,10 +339,13 @@ class CoreNetwork(nn.Module):
 
     def forward(self, g_t, h_state_prev, c_state_prev):
         
-        h1 = self.i2h(g_t)
-        h2 = self.h2h(h_state_prev)
+        h1_1 = F.relu(self.i2h_1(g_t))
+        h1_2 = self.i2h_2(h1_1)
         
-        h_state = F.relu(torch.cat((h1, h2), dim=1))
+        h2_1 = F.relu(self.h2h_1(h_state_prev))
+        h2_2 = self.h2h_2(h2_1)
+        
+        h_state = F.relu(torch.cat((h1_2, h2_2), dim=1))
         
         return h_state
         
@@ -384,34 +393,31 @@ class ActionNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()
 
-        hid_size = input_size//2
+        self.fc_1_mu_x = nn.Linear(input_size, input_size//2)
+        self.fc_2_mu_x = nn.Linear(input_size//2, input_size//4)
+        self.fc_3_mu_x = nn.Linear(input_size//4, 1)
         
-        self.fc = nn.Linear(input_size, hid_size)
-        self.fc_mu_x = nn.Linear(hid_size, 1)
-        self.fc_mu_y = nn.Linear(hid_size, 1)
-        #self.fc_std_x = nn.Linear(hid_size, 1)
-        #self.fc_std_y = nn.Linear(hid_size, 1)
+        self.fc_1_mu_y = nn.Linear(input_size, input_size//2)
+        self.fc_2_mu_y = nn.Linear(input_size//2, input_size//4)
+        self.fc_3_mu_y = nn.Linear(input_size//4, 1)
 
     def forward(self, h_t):
         
-        feat = F.relu(self.fc(h_t.detach()))
+        mu_x_1 = F.relu(self.fc_1_mu_x(h_t))
+        mu_x_2 = F.relu(self.fc_2_mu_x(mu_x_1))
+        mu_x = torch.tanh(self.fc_3_mu_x(mu_x_2))
         
-        mu_x = torch.tanh(self.fc_mu_x(feat))
-        mu_y = torch.tanh(self.fc_mu_y(feat))
-        
-        #std_x = torch.tanh(self.fc_std_x(feat))
-        #std_y = torch.tanh(self.fc_std_y(feat))
+        mu_y_1 = F.relu(self.fc_1_mu_y(h_t))
+        mu_y_2 = F.relu(self.fc_2_mu_y(mu_y_1))
+        mu_y = torch.tanh(self.fc_3_mu_y(mu_y_2))
         
         # reparametrization trick
-        l_t_x = torch.distributions.Normal(mu_x, 0.05).rsample()
-        l_t_y = torch.distributions.Normal(mu_y, 0.05).rsample()
-        
-        #l_t_x = l_t_x.detach()
-        #l_t_y = l_t_y.detach()
+        #l_t_x = Normal(mu_x, 0.05).rsample()
+        #l_t_y = Normal(mu_y, 0.05).rsample()
 
         # bound between [-1, 1]
-        l_t_x = torch.clamp(l_t_x, -1, 1)
-        l_t_y = torch.clamp(l_t_y, -1, 1)
+        l_t_x = torch.clamp(mu_x, -1, 1)
+        l_t_y = torch.clamp(mu_y, -1, 1)
         
         l_t = torch.cat((l_t_x, l_t_y), dim=1)
 
@@ -464,7 +470,7 @@ class LocationNetwork(nn.Module):
         mu = torch.tanh(self.fc_lt(feat))
         
         # reparametrization trick
-        l_t = torch.distributions.Normal(mu, self.std).rsample()
+        l_t = Normal(mu, self.std).rsample()
         l_t = l_t.detach()
         log_pi = Normal(mu, self.std).log_prob(l_t)
 
