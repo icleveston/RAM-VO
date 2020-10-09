@@ -5,7 +5,7 @@
 
 <p>This is a baseline regression model built upon RAM. This model does not perform temporal regression as usually used in visual odometry. The </p>
 
-<img src="out/exec_4_16_3_2_2020_10_09_14_34_54/epoch_2.gif" width=100 />
+<img src="out/exec_4_16_3_2_2020_10_09_14_34_54/epoch_2.gif" width=400 />
 
 <h5>Configurations</h5>
 <table>
