@@ -129,7 +129,7 @@ def main(plot_dir, epoch):
     
     # Create the animation
     anim = animation.FuncAnimation(
-        fig, updateData, frames=num_glimpses*5, interval=500, repeat=True, blit=True
+        fig, updateData, frames=num_glimpses*5, interval=500, repeat=True
     )
 
     # Save the video file
