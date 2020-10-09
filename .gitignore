@@ -130,7 +130,7 @@ dmypy.json
 
 .idea/
 
-out/
+*.p
 dataset/ball/00/
 dataset/pixel_continuous_uniform/00/
 dataset/pixel_continuous_skipped/00/
