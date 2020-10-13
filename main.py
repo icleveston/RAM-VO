@@ -650,20 +650,15 @@ class Main:
         df['glimpse scale'] = [self.glimpse_scale]
         df['num patches'] = [self.num_patches]
         df['num glimpses'] = [self.num_glimpses]
-        render_table(df, self.output_path, 'config_1.jpg')
-        
-        df = pd.DataFrame()
         df['batch size'] = [self.batch_size]
         df['epochs'] = [self.epochs]
         df['lr'] = [self.lr]
-        render_table(df, self.output_path, 'config_2.jpg')
-        
-        df = pd.DataFrame()
         df['dataset'] = [self.train_loader.dataset.name]
         df['train samples'] = [self.num_train]
         df['valid samples'] = [self.num_valid]
         df['test samples'] = [self.num_test]
-        render_table(df, self.output_path, 'config_3.jpg')
+        
+        render_table(df, self.output_path, 'config.jpg')
         
     def _save_results(self):
     
