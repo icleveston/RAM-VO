@@ -82,7 +82,7 @@ def main(data_dir, minibatch, save):
     fig, axs = plt.subplots(nrows=4, ncols=2)
     fig.set_size_inches(15, 10)
     fig.set_dpi(80)
-    fig.tight_layout()
+    fig.tight_layout(rect=[0.005, 0, 1, 0.95], pad=2.0, w_pad=2.0, h_pad=2.0)
     
     type_loss = 'Minibatch' if minibatch else 'Epoch'
     
@@ -100,7 +100,7 @@ def main(data_dir, minibatch, save):
     if not save:
         plt.show()
     else:
-        plt.savefig(os.path.join("out", data_dir, 'loss.png'), orientation='landscape', dpi=80)
+        plt.savefig(os.path.join("out", data_dir, 'loss.jpg'), orientation='landscape', dpi=100)
     
 if __name__ == "__main__":
     args = parse_arguments()
