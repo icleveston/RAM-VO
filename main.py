@@ -653,10 +653,9 @@ class Main:
         df['batch size'] = [self.batch_size]
         df['epochs'] = [self.epochs]
         df['lr'] = [self.lr]
-        df['dataset'] = [self.train_loader.dataset.name]
-        df['train samples'] = [self.num_train]
-        df['valid samples'] = [self.num_valid]
-        df['test samples'] = [self.num_test]
+        df['num train'] = [self.num_train]
+        df['num valid'] = [self.num_valid]
+        df['num test'] = [self.num_test]
         
         render_table(df, self.output_path, 'config.jpg')
         
