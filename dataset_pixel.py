@@ -59,10 +59,10 @@ class PixelSkipped100Dataset(Dataset):
         coordinates_t_1 = self.content[idx+1].split(',')
         
         # Convert the coordinates to int
-        x_t = torch.tensor(float(coordinates_t[0]))
-        y_t = torch.tensor(float(coordinates_t[1]))
-        x_t_1 = torch.tensor(float(coordinates_t_1[0]))
-        y_t_1 = torch.tensor(float(coordinates_t_1[1]))
+        x_t = torch.tensor(float(coordinates_t[0]), dtype=torch.float)
+        y_t = torch.tensor(float(coordinates_t[1]), dtype=torch.float)
+        x_t_1 = torch.tensor(float(coordinates_t_1[0]), dtype=torch.float)
+        y_t_1 = torch.tensor(float(coordinates_t_1[1]), dtype=torch.float)
         
         # Compute the displacement
         distance = torch.stack([x_t_1-x_t, y_t_1-y_t])
@@ -113,10 +113,10 @@ class PixelSkipped25Dataset(Dataset):
         coordinates_t_1 = self.content[idx+1].split(',')
         
         # Convert the coordinates to int
-        x_t = torch.tensor(float(coordinates_t[0]))
-        y_t = torch.tensor(float(coordinates_t[1]))
-        x_t_1 = torch.tensor(float(coordinates_t_1[0]))
-        y_t_1 = torch.tensor(float(coordinates_t_1[1]))
+        x_t = torch.tensor(float(coordinates_t[0]), dtype=torch.float)
+        y_t = torch.tensor(float(coordinates_t[1]), dtype=torch.float)
+        x_t_1 = torch.tensor(float(coordinates_t_1[0]), dtype=torch.float)
+        y_t_1 = torch.tensor(float(coordinates_t_1[1]), dtype=torch.float)
         
         # Compute the displacement
         distance = torch.stack([x_t_1-x_t, y_t_1-y_t])
@@ -172,10 +172,10 @@ class PixelUniformDataset(Dataset):
         coordinates_t_1 = self.content[idx+1].split(',')
         
         # Convert the coordinates to int
-        x_t = torch.tensor(float(coordinates_t[0]))
-        y_t = torch.tensor(float(coordinates_t[1]))
-        x_t_1 = torch.tensor(float(coordinates_t_1[0]))
-        y_t_1 = torch.tensor(float(coordinates_t_1[1]))
+        x_t = torch.tensor(float(coordinates_t[0]), dtype=torch.float)
+        y_t = torch.tensor(float(coordinates_t[1]), dtype=torch.float)
+        x_t_1 = torch.tensor(float(coordinates_t_1[0]), dtype=torch.float)
+        y_t_1 = torch.tensor(float(coordinates_t_1[1]), dtype=torch.float)
         
         motion = (x_t_1-x_t, y_t_1-y_t)
         

@@ -4,25 +4,27 @@ import argparse
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+from matplotlib.animation import FuncAnimation, ImageMagickWriter 
 from torchvision import transforms
-from utils import denormalize, bounding_box
+from utils import denormalize, bounding_box, str2bool
 
 first = True
 input_index = 1
+
 
 def parse_arguments():
     
     arg = argparse.ArgumentParser()
     arg.add_argument("--dir", type=str, required=True, help="path to the output execution")
     arg.add_argument("--epoch", type=int, required=True, help="epoch of desired plot")
+    arg.add_argument("--save_as_gif", type=str2bool, default=True, help="save the plot as gif")
     
     args = vars(arg.parse_args())
     
-    return args["dir"], args["epoch"]
+    return args["dir"], args["epoch"], args["save_as_gif"]
 
 
-def main(plot_dir, epoch):
+def main(plot_dir, epoch, save_as_gif):
         
     # Read the pickle files
     glimpses = pickle.load(open(os.path.join("out", plot_dir, 'glimpse', f"glimpses_epoch_{epoch}.p"), "rb"))
@@ -68,8 +70,9 @@ def main(plot_dir, epoch):
 
     # Create the plots
     fig, axs = plt.subplots(nrows=1, ncols=2)
+    fig.set_size_inches(7, 5)
     fig.tight_layout()
-    fig.set_dpi(300)
+    fig.set_dpi(80)
 
     def updateData(i):
         
@@ -129,13 +132,13 @@ def main(plot_dir, epoch):
             glimpse_1.add_patch(rect_1)
     
     # Create the animation
-    anim = animation.FuncAnimation(
-        fig, updateData, frames=num_glimpses*2
+    anim = FuncAnimation(
+        fig, updateData, frames=num_glimpses*2, interval=5000
     )
 
     # Save the video file
-    if True:
-        anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.gif"), writer='imagemagick', fps=10)
+    if save_as_gif:
+        anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.gif"), writer=ImageMagickWriter(fps=25))
     else:
         anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
 

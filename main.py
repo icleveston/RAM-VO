@@ -316,12 +316,11 @@ class Main:
                 # Denormalize the predictions
                 predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
 
-                
                 loss_mse = torch.nn.MSELoss()
                 loss_l1 = torch.nn.L1Loss()
                 
                 # Compute the reward based on L1 norm
-                R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(predicted_denormalized.detach(), y)]).to(self.device))
+                R = 1/(1 + torch.sum(torch.abs(predicted_denormalized.detach() - y), dim=1))
                 
                 R = R.unsqueeze(1).repeat(1, self.num_glimpses)
                     
@@ -458,7 +457,7 @@ class Main:
             loss_l1 = torch.nn.L1Loss()
             
             # Compute the reward based on L1 norm
-            R = 1/(1 + torch.tensor([torch.abs(p[0]-y[0]) + torch.abs(p[1]-y[1]) for p, y in zip(predicted_denormalized.detach(), y)]).to(self.device))
+            R = 1/(1 + torch.sum(torch.abs(predicted_denormalized.detach() - y), dim=1))
             
             R = R.unsqueeze(1).repeat(1, self.num_glimpses)
                 
@@ -654,16 +653,6 @@ class Main:
         # Save the table
         render_table(df, self.output_path, 'config.jpg')
         
-
-def str2bool(v):
-    if isinstance(v, bool):
-       return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def parse_arguments():
     
