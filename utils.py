@@ -208,7 +208,7 @@ def render_table(data, data_dir, filename, col_width=1.8, row_height=0.7, font_s
     
     size = (np.array(data.shape[::-1]) + np.array([0, 1])) * np.array([col_width, row_height])
     fig, ax = plt.subplots(figsize=size)
-    fig.set_dpi(80)
+    fig.set_dpi(100)
     ax.axis('off')
 
     mpl_table = ax.table(cellText=data.values, bbox=bbox, colLabels=data.columns, **kwargs)
@@ -226,4 +226,4 @@ def render_table(data, data_dir, filename, col_width=1.8, row_height=0.7, font_s
             
     # Save the table
     fig.tight_layout()
-    plt.savefig(os.path.join(data_dir, filename), orientation='landscape', dpi=80)
+    plt.savefig(os.path.join(data_dir, filename), orientation='landscape', dpi=100)
