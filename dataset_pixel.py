@@ -20,6 +20,7 @@ class PixelSkipped100Dataset(Dataset):
 
     def __init__(self, trans):
            
+        self.name = "PixelSkipped100"
         self.trans = trans
            
         data_dir = 'dataset/pixel_skipped_100/00/'
@@ -74,6 +75,7 @@ class PixelSkipped25Dataset(Dataset):
 
     def __init__(self, trans):
            
+        self.name = "PixelSkipped25"
         self.trans = trans
            
         data_dir = 'dataset/pixel_skipped_25/00/'
@@ -128,6 +130,7 @@ class PixelUniformDataset(Dataset):
 
     def __init__(self, trans):
            
+        self.name = "PixelUniform"
         self.trans = trans
            
         data_dir = 'dataset/pixel_continous_uniform/00/'

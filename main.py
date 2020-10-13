@@ -37,7 +37,6 @@ class Main:
         self.test_size = 0.05 # Proportion of training set used for test
         self.batch_size = 128 # number of images in each batch of data
         self.num_workers = 4 # number of subprocesses to use for data loading
-        self.shuffle = True # Whether to shuffle the train and valid indices
         self.num_out = 2
         self.num_channels = 3
             
@@ -50,7 +49,6 @@ class Main:
         self.train_patience = 50 # Number of epochs to wait before stopping train
 
         # Other params
-        self.use_gpu = True # Whether to run on the GPU
         self.random_seed = 1 # Seed to ensure reproducibility
         self.best = True # Load best model or most recent for testing
         self.print_freq = 10 # How frequently to print training details
@@ -63,7 +61,7 @@ class Main:
         torch.manual_seed(self.random_seed)
         
          # Check if the gpu is available
-        if self.use_gpu and torch.cuda.is_available():
+        if torch.cuda.is_available():
             
             self.device = torch.device("cuda")
             
@@ -237,6 +235,9 @@ class Main:
                     "best_valid_acc": self.best_valid_acc,
                 }, is_best
             )
+            
+        # Save the results as image
+        self._save_results()
 
     def _train_one_epoch(self, epoch):
         """
@@ -643,6 +644,28 @@ class Main:
             
             
     def _save_config(self):
+            
+        df = pd.DataFrame()
+        df['patch size'] = [self.patch_size]
+        df['glimpse scale'] = [self.glimpse_scale]
+        df['num patches'] = [self.num_patches]
+        df['num glimpses'] = [self.num_glimpses]
+        render_table(df, self.output_path, 'config_1.jpg')
+        
+        df = pd.DataFrame()
+        df['batch size'] = [self.batch_size]
+        df['epochs'] = [self.epochs]
+        df['lr'] = [self.lr]
+        render_table(df, self.output_path, 'config_2.jpg')
+        
+        df = pd.DataFrame()
+        df['dataset'] = [self.train_loader.dataset.name]
+        df['train samples'] = [self.num_train]
+        df['valid samples'] = [self.num_valid]
+        df['test samples'] = [self.num_test]
+        render_table(df, self.output_path, 'config_3.jpg')
+        
+    def _save_results(self):
     
         df = pd.DataFrame()
         df['date'] = ['2016-04-01', '2016-04-02', '2016-04-03']
@@ -651,7 +674,7 @@ class Main:
         df['gym'] = [True, False, False]
         
         # Save the table
-        render_table(df, self.output_path, 'config.jpg')
+        render_table(df, self.output_path, 'results.jpg')
         
 
 def parse_arguments():

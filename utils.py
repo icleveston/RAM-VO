@@ -202,7 +202,7 @@ def save_config(config):
         json.dump(config.__dict__, fp, indent=4, sort_keys=True)
 
 
-def render_table(data, data_dir, filename, col_width=3.0, row_height=0.625, font_size=14,
+def render_table(data, data_dir, filename, col_width=1.5, row_height=0.625, font_size=10,
                     header_color='#40466e', row_colors=['#f1f1f2', 'w'], edge_color='w',
                     bbox=[0, 0, 1, 1], header_columns=0,
                     ax=None, **kwargs):
@@ -226,4 +226,5 @@ def render_table(data, data_dir, filename, col_width=3.0, row_height=0.625, font
             cell.set_facecolor(row_colors[k[0]%len(row_colors) ])
             
     # Save the table
+    fig.tight_layout()
     plt.savefig(os.path.join(data_dir, filename), orientation='landscape', dpi=80)
