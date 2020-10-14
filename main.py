@@ -539,11 +539,6 @@ class Main:
        
         mse_all = sum(mse_all)/len(mse_all)
         mae_all = sum(mae_all)/len(mae_all)
-        
-        print(f"[*] Test MSE: {mse_all} - MAE: {mae_all}")
-        
-        for e in samples:
-            print(f"Predicted: {e[3]} - Ground-truth: {e[2]}")
             
         # Save the results as image
         self._save_results([mse_all, mae_all, samples])
@@ -665,11 +660,42 @@ class Main:
     def _save_results(self, data):
     
         df = pd.DataFrame()
-        df['MAE'] = [data[0]]
-        df['MSE'] = [data[1]]
+        df['MAE'] = [round(data[0], 4)]
+        df['MSE'] = [round(data[1], 4)]
+        
+        df = df.astype(str)
+        
+        print(df)
         
         # Save the table
-        render_table(df, self.output_path, 'results.svg')
+        render_table(df, self.output_path, 'metrics.svg')
+        
+        predictions = []
+        ground_truth = []
+        mae = []
+        
+        for e in data[2]:
+            
+            p = list(map(lambda x: round(x, 2), e[3].cpu().numpy()))
+            q = e[2].cpu().numpy()
+            
+            predictions.append(p)
+            ground_truth.append(q)
+            
+            # Compute the mae for each prediction
+            mae.append(round(abs(p[0]-q[0]) + abs(p[1]-q[1]), 2))
+        
+        df = pd.DataFrame()
+        df['Predicted'] = predictions
+        df['Ground-truth'] = ground_truth
+        df['MAE'] = list(map(lambda x: "%.3f" % x, mae))
+        
+        df = df.astype(str)
+        
+        print(df)
+        
+        # Save the table
+        render_table(df, self.output_path, 'predictions.svg', col_width=3)
         
 
 def parse_arguments():
