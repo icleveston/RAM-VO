@@ -80,9 +80,9 @@ def main(data_dir, minibatch, save):
 
     # Create the plots
     fig, axs = plt.subplots(nrows=4, ncols=2)
-    fig.set_size_inches(15, 10)
+    fig.set_size_inches(15, 15)
     fig.set_dpi(80)
-    fig.tight_layout(rect=[0.005, 0, 1, 0.95], pad=2.0, w_pad=2.0, h_pad=2.0)
+    fig.tight_layout(rect=[0.005, 0, 1, 0.95], pad=2.0, w_pad=3.0, h_pad=3.0)
     
     type_loss = 'Minibatch' if minibatch else 'Epoch'
     
@@ -95,8 +95,25 @@ def main(data_dir, minibatch, save):
         ax.plot(plot_order_array[i])
         
         ax.set_title(titles[i])
-        ax.grid(True)
-    
+        
+        amax = np.amax(plot_order_array[i])
+        amin = np.amin(plot_order_array[i])
+        amax += amax*0.1
+        
+        major_ticks = np.arange(amin, amax, (amax-amin)/10)
+        minor_ticks = np.arange(amin, amax, (amax-amin)/20)
+
+        # Set the y ticks
+        ax.set_yticks(major_ticks)
+        ax.set_yticks(minor_ticks, minor=True)
+                
+        # Format the y tick labels
+        ax.set_yticklabels(list(map(lambda x: "%.3f" % x, major_ticks)))
+        
+        # Or if you want different settings for the grids:
+        ax.grid(which='minor', alpha=0.5)
+        ax.grid(which='major', alpha=0.8)
+        
     if not save:
         plt.show()
     else:
