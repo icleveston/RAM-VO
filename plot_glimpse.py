@@ -10,7 +10,7 @@ from utils import denormalize, bounding_box, str2bool
 
 first = True
 input_index = 1
-
+interval_frames = 15
 
 def parse_arguments():
     
@@ -70,75 +70,79 @@ def main(plot_dir, epoch, save_as_gif):
 
     # Create the plots
     fig, axs = plt.subplots(nrows=1, ncols=2)
-    fig.set_size_inches(7, 5)
-    fig.tight_layout()
+    fig.tight_layout(rect=[0.005, 0, 1, 0.95], pad=0, w_pad=0, h_pad=0)
     fig.set_dpi(80)
 
     def updateData(i):
         
-        global input_index, first
+        global input_index, first, interval_frames
         
-        # First frame set white
-        if first:
-            first = False
-            return
-        
-        color = ["r", 'b', 'g', 'y']
+        if i % interval_frames == 0:
             
-        # Get the subplot axes
-        glimpse_0 = axs.flat[0]
-        glimpse_1 = axs.flat[1]
-        
-        if i % num_glimpses == 0:
+            i = i//interval_frames
+  
+            # First frame set white
+            if first:
+                first = False
+                return
             
-            # Update the input index
-            input_index += 1
-
-            # Set the plot title
-            glimpse_0.set_title('Glimpse Sensor 0', {'fontsize': 10, 'verticalalignment': 'top'}, y=1, loc='center')
-            glimpse_1.set_title('Glimpse Sensor 1', {'fontsize': 10, 'verticalalignment': 'top'}, y=1, loc='center')
-
-            # Set the image
-            glimpse_0.imshow(img_0_denor[input_index].T)
-            glimpse_1.imshow(img_1_denor[input_index].T)
-            
-            # Disable the axes
-            glimpse_0.get_yaxis().set_visible(False)
-            glimpse_0.get_xaxis().set_visible(False)
-            glimpse_1.get_yaxis().set_visible(False)
-            glimpse_1.get_xaxis().set_visible(False)
+            color = ["r", 'b', 'g', 'y']
                 
-        # Set the figure title
-        fig.suptitle(f"Input: (t+{input_index}, t+{input_index+1}) | Glimpse step: {str((i%num_glimpses)+1)}", fontsize=14)
+            # Get the subplot axes
+            glimpse_0 = axs.flat[0]
+            glimpse_1 = axs.flat[1]
             
-        # Remove all patches previously added
-        glimpse_0.patches = []
-        glimpse_1.patches = []
-        
-        size = patch_size
-        
-        #Draw the glimpse for each num_patch
-        for k in range(1, num_patches+1):
+            if i % num_glimpses == 0:
+                
+                # Update the input index
+                input_index += 1
 
-            #Draw the bounding box
-            rect_0 = bounding_box(coordinates_0[i%num_glimpses][input_index][0], coordinates_0[i%num_glimpses][input_index][1], size, color[k-1])
-            rect_1 = bounding_box(coordinates_1[i%num_glimpses][input_index][0], coordinates_1[i%num_glimpses][input_index][1], size, color[k-1])
+                # Set the plot title
+                glimpse_0.set_title('Glimpse Sensor 0', {'fontsize': 10, 'verticalalignment': 'top'}, y=1, loc='center')
+                glimpse_1.set_title('Glimpse Sensor 1', {'fontsize': 10, 'verticalalignment': 'top'}, y=1, loc='center')
+
+                # Set the image
+                glimpse_0.imshow(img_0_denor[input_index].T)
+                glimpse_1.imshow(img_1_denor[input_index].T)
+                
+                # Disable the axes
+                glimpse_0.get_yaxis().set_visible(False)
+                glimpse_0.get_xaxis().set_visible(False)
+                glimpse_1.get_yaxis().set_visible(False)
+                glimpse_1.get_xaxis().set_visible(False)
+                    
+            # Set the figure title
+            fig.suptitle(f"Input: (t+{input_index}, t+{input_index+1}) | Glimpse step: {str((i%num_glimpses)+1)}", fontsize=14)
+                
+            # Remove all patches previously added
+            glimpse_0.patches = []
+            glimpse_1.patches = []
             
-            #Update the size
-            size = size*glimpse_scale
+            size = patch_size
             
-            #Add to the subplot
-            glimpse_0.add_patch(rect_0)
-            glimpse_1.add_patch(rect_1)
+            #Draw the glimpse for each num_patch
+            for k in range(1, num_patches+1):
+
+                #Draw the bounding box
+                rect_0 = bounding_box(coordinates_0[i%num_glimpses][input_index][0], coordinates_0[i%num_glimpses][input_index][1], size, color[k-1])
+                rect_1 = bounding_box(coordinates_1[i%num_glimpses][input_index][0], coordinates_1[i%num_glimpses][input_index][1], size, color[k-1])
+                
+                #Update the size
+                size = size*glimpse_scale
+                
+                #Add to the subplot
+                glimpse_0.add_patch(rect_0)
+                glimpse_1.add_patch(rect_1)
+
     
     # Create the animation
     anim = FuncAnimation(
-        fig, updateData, frames=num_glimpses*2, interval=5000
+        fig, updateData, frames=num_glimpses*4*interval_frames, repeat=False
     )
 
     # Save the video file
     if save_as_gif:
-        anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.gif"), writer=ImageMagickWriter(fps=25))
+        anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.gif"), writer=ImageMagickWriter(fps=interval_frames))
     else:
         anim.save(os.path.join("out", plot_dir, f"epoch_{epoch}.mp4"), extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"])
 

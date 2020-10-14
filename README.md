@@ -15,4 +15,4 @@
 <img src="out/exec_4_16_3_2_2020_10_09_14_34_54/config.svg" width="100%" />
 
 <h5>Glimpse Motion</h5>
-<img src="out/exec_4_16_3_2_2020_10_09_14_34_54/epoch_2.gif" width="100%" />
+<img src="out/exec_4_16_3_2_2020_10_09_14_34_54/epoch_200.gif" width="100%" />
