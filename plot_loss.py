@@ -100,7 +100,7 @@ def main(data_dir, minibatch, save):
     if not save:
         plt.show()
     else:
-        plt.savefig(os.path.join("out", data_dir, 'loss.jpg'), orientation='landscape', dpi=100)
+        plt.savefig(os.path.join("out", data_dir, 'loss.svg'), orientation='landscape', dpi=100)
     
 if __name__ == "__main__":
     args = parse_arguments()

@@ -660,7 +660,7 @@ class Main:
         df = df.astype(str)
         
         # Render the table
-        render_table(df, self.output_path, 'config.jpg')
+        render_table(df, self.output_path, 'config.svg')
         
     def _save_results(self, data):
     
@@ -669,7 +669,7 @@ class Main:
         df['MSE'] = [data[1]]
         
         # Save the table
-        render_table(df, self.output_path, 'results.jpg')
+        render_table(df, self.output_path, 'results.svg')
         
 
 def parse_arguments():
