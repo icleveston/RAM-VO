@@ -11,7 +11,7 @@
 <h5>Losses</h5>
 <img src="out/exec_4_16_3_2_2020_10_09_14_34_54/loss.jpg" width="100%" />
 
-<h5>Configurations</h5>
+<h5>Configuration</h5>
 <img src="out/exec_4_16_3_2_2020_10_09_14_34_54/config.jpg" width="100%" />
 
 <h5>Glimpse Motion</h5>

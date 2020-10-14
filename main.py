@@ -235,9 +235,6 @@ class Main:
                     "best_valid_acc": self.best_valid_acc,
                 }, is_best
             )
-            
-        # Save the results as image
-        self._save_results()
 
     def _train_one_epoch(self, epoch):
         """
@@ -547,6 +544,9 @@ class Main:
         
         for e in samples:
             print(f"Predicted: {e[3]} - Ground-truth: {e[2]}")
+            
+        # Save the results as image
+        self._save_results([mse_all, mae_all, samples])
 
     def _reset(self):
         
@@ -657,15 +657,16 @@ class Main:
         df['num valid'] = [self.num_valid]
         df['num test'] = [self.num_test]
         
+        df = df.astype(str)
+        
+        # Render the table
         render_table(df, self.output_path, 'config.jpg')
         
-    def _save_results(self):
+    def _save_results(self, data):
     
         df = pd.DataFrame()
-        df['date'] = ['2016-04-01', '2016-04-02', '2016-04-03']
-        df['calories'] = [2200, 2100, 1500]
-        df['sleep hours'] = [2200, 2100, 1500]
-        df['gym'] = [True, False, False]
+        df['MAE'] = [data[0]]
+        df['MSE'] = [data[1]]
         
         # Save the table
         render_table(df, self.output_path, 'results.jpg')

@@ -211,7 +211,7 @@ def render_table(data, data_dir, filename, col_width=1.8, row_height=0.7, font_s
     fig.set_dpi(100)
     ax.axis('off')
 
-    mpl_table = ax.table(cellText=data.values, bbox=bbox, colLabels=data.columns, **kwargs)
+    mpl_table = ax.table(cellText=data.to_numpy(), bbox=bbox, colLabels=data.columns, **kwargs)
 
     mpl_table.auto_set_font_size(False)
     mpl_table.set_fontsize(font_size)
