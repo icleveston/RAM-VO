@@ -503,7 +503,7 @@ class Main:
         loss_l1 = torch.nn.L1Loss()
 
         for i, (x, y) in enumerate(self.test_loader):
-
+            
             # Set data to the respected device
             x_0, x_1, y = x[0].to(self.device), x[1].to(self.device), y.to(self.device)
 
@@ -527,8 +527,10 @@ class Main:
             # Denormalize the predictions
             predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
             
-            # Save the first prediction for the each batch
-            samples.append([x_0[0], x_1[0], y[0].data, predicted_denormalized[0].data])
+            # Save only the first 10 mini-batches
+            if i <= 10:
+                # Save the first prediction for the each batch
+                samples.append([x_0[0], x_1[0], y[0].data, predicted_denormalized[0].data])
             
             # Compute the losses
             mse = loss_mse(predicted_denormalized.detach(), y)
@@ -660,8 +662,8 @@ class Main:
     def _save_results(self, data):
     
         df = pd.DataFrame()
-        df['MAE'] = [round(data[0], 4)]
-        df['MSE'] = [round(data[1], 4)]
+        df['MSE'] = [round(data[0], 4)]
+        df['MAE'] = [round(data[1], 4)]
         
         df = df.astype(str)
         
