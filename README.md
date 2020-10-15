@@ -5,9 +5,10 @@
 
 <p>This is a baseline regression model built upon RAM. This model uses a black image pair with 100x100 pixels, the tracked point has 4x4 pixels. </p>
 
-<h5>Results on Test</h5>
+<h5>Metrics on Test</h5>
 <img src="out/exec_4_16_3_2_2020_10_09_14_34_54/metrics.svg" width="25%" />
-<br />
+
+<h5>Predictions on Test</h5>
 <img src="out/exec_4_16_3_2_2020_10_09_14_34_54/predictions.svg" width="50%" />
 
 <h5>Losses</h5>
