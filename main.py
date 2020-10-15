@@ -320,14 +320,14 @@ class Main:
                 # Compute the reward based on L1 norm
                 R = 1/(1 + torch.sum(torch.abs(predicted_denormalized.detach() - y), dim=1))
                 
-                R = R.unsqueeze(1).repeat(1, self.num_glimpses)
+                R_unsqueeze = R.unsqueeze(1).repeat(1, self.num_glimpses)
                     
                 # Compute losses for differentiable modules
                 loss_action = loss_mse(predicted_denormalized, y)
-                loss_baseline = loss_mse(baselines, R)
+                loss_baseline = loss_mse(baselines, R_unsqueeze)
 
                 # Compute reinforce loss, summed over timesteps and averaged across batch
-                adjusted_reward = R - baselines.detach()
+                adjusted_reward = R_unsqueeze - baselines.detach()
 
                 loss_reinforce_0 = torch.sum(-log_pi_0 * adjusted_reward, dim=1)
                 loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 0.1
@@ -349,7 +349,7 @@ class Main:
                 loss_reinforce_1_array.append(loss_reinforce_1.cpu().data.numpy())
                 mse_array.append(mse.cpu().data.numpy())
                 mae_array.append(mae.cpu().data.numpy())
-                reward_array.append(torch.mean(torch.sum(R, dim=1), dim=0).data.numpy())
+                reward_array.append(torch.mean(R).data.numpy())  
 
                 # Store the loss and metric
                 losses.update(loss.item(), x_0.size()[0])
