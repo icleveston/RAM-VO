@@ -132,8 +132,7 @@ dmypy.json
 
 *.p
 dataset/ball/00/
-dataset/pixel_continuous_uniform/00/
-dataset/pixel_continuous_skipped/00/
-dataset/pixel_skipped_25/00/
+dataset/pixel_continuous_100/00/
 dataset/pixel_skipped_100/00/
+dataset/pixel_continuous_uniform/00/
 dataset.zip
