@@ -38,6 +38,13 @@ class PixelContinuous100Dataset(Dataset):
         
         # Count the groundtruth lines
         self.length = len(self.content)-2
+        
+        # The image array
+        self.images_array = []
+        
+        # Open image
+        for i in range(self.length):
+            self.images_array.append(cv2.imread(os.path.join(self.path_frames, f"{i}.jpg")))
 
     def __len__(self):
         return self.length
@@ -47,12 +54,8 @@ class PixelContinuous100Dataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        # Open image
-        image_t = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
-        image_t_1 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
-        
         # Concat the two images
-        images = [self.trans(image_t), self.trans(image_t_1)]
+        images = [self.trans(self.images_array[idx]), self.trans(self.images_array[idx+1])]
         
         # Read the ground truth
         coordinates_t = self.content[idx].split(',')
@@ -93,6 +96,13 @@ class PixelSkipped100Dataset(Dataset):
         
         # Count the groundtruth lines
         self.length = len(self.content)-2
+        
+        # The image array
+        self.images_array = []
+        
+        # Open image
+        for i in range(self.length):
+            self.images_array.append(cv2.imread(os.path.join(self.path_frames, f"{i}.jpg")))
 
     def __len__(self):
         return self.length
@@ -102,12 +112,8 @@ class PixelSkipped100Dataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        # Open image
-        image_t = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
-        image_t_1 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
-        
         # Concat the two images
-        images = [self.trans(image_t), self.trans(image_t_1)]
+        images = [self.trans(self.images_array[idx]), self.trans(self.images_array[idx+1])]
         
         # Read the ground truth
         coordinates_t = self.content[idx].split(',')
