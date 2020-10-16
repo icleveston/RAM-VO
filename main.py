@@ -35,7 +35,7 @@ class Main:
         # Data Params
         self.valid_size = 0.1 # Proportion of training set used for validation
         self.test_size = 0.05 # Proportion of training set used for test
-        self.batch_size = 128 # number of images in each batch of data
+        self.batch_size = 3896 # number of images in each batch of data
         self.num_workers = 4 # number of subprocesses to use for data loading
         self.num_out = 2
         self.num_channels = 3
@@ -52,7 +52,6 @@ class Main:
         self.random_seed = 1 # Seed to ensure reproducibility
         self.best = True # Load best model or most recent for testing
         self.print_freq = 10 # How frequently to print training details
-        self.num_workers = 4
         self.pin_memory = False
         self.best_valid_acc = 10000000.0
         self.counter = 0
@@ -67,7 +66,7 @@ class Main:
             
             torch.cuda.manual_seed(self.random_seed)
             
-            self.num_workers = 1
+            self.num_workers = 4
             self.pin_memory = True
             
         else:
@@ -349,7 +348,7 @@ class Main:
                 loss_reinforce_1_array.append(loss_reinforce_1.cpu().data.numpy())
                 mse_array.append(mse.cpu().data.numpy())
                 mae_array.append(mae.cpu().data.numpy())
-                reward_array.append(torch.mean(R).data.numpy())  
+                reward_array.append(torch.mean(R).cpu().data.numpy())  
 
                 # Store the loss and metric
                 losses.update(loss.item(), x_0.size()[0])
