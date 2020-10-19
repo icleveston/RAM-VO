@@ -40,11 +40,10 @@ class PixelContinuous100Dataset(Dataset):
         self.length = len(self.content)-2
         
         # The image array
-        self.images_array = []
+        #self.images_array = []
         
         # Open image
-        for i in range(self.length):
-            self.images_array.append(cv2.imread(os.path.join(self.path_frames, f"{i}.jpg")))
+        #for i in range(self.length):
 
     def __len__(self):
         return self.length
@@ -54,8 +53,11 @@ class PixelContinuous100Dataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+        image_1 = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
+        image_2 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
+
         # Concat the two images
-        images = [self.trans(self.images_array[idx]), self.trans(self.images_array[idx+1])]
+        images = [self.trans(image_1), self.trans(image_2)]
         
         # Read the ground truth
         coordinates_t = self.content[idx].split(',')
@@ -101,16 +103,19 @@ class PixelSkipped100Dataset(Dataset):
         self.images_array = []
         
         # Open image
-        for i in range(self.length):
+        for i in range(self.length//2):
             self.images_array.append(cv2.imread(os.path.join(self.path_frames, f"{i}.jpg")))
 
     def __len__(self):
-        return self.length
+        return self.length // 2
 
     def __getitem__(self, idx):
         
         if torch.is_tensor(idx):
             idx = idx.tolist()
+	
+        #image_1 = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
+        #image_2 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
 
         # Concat the two images
         images = [self.trans(self.images_array[idx]), self.trans(self.images_array[idx+1])]
