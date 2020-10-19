@@ -36,7 +36,7 @@ class Main:
         self.valid_size = 0.1 # Proportion of training set used for validation
         self.test_size = 0.05 # Proportion of training set used for test
         self.batch_size = 512 # number of images in each batch of data
-	#self.num_workers = 4 # number of subprocesses to use for data loading
+        self.num_workers = 4 # number of subprocesses to use for data loading
         self.num_out = 2
         self.num_channels = 3
             
@@ -44,9 +44,9 @@ class Main:
         self.epochs = 200 # number of epochs to train for
         self.start_epoch = 0
         self.momentum = 0.5 # Nesterov momentum value
-        self.lr = 1e-3 # Initial learning rate value
+        self.lr = 3e-4 # Initial learning rate value
         self.lr_patience = 15 # Number of epochs to wait before reducing lr
-        self.lr_threshold = 0.1
+        self.lr_threshold = 0.01
         self.train_patience = 50 # Number of epochs to wait before stopping train
 
         # Other params
@@ -67,7 +67,7 @@ class Main:
             
             torch.cuda.manual_seed(self.random_seed)
             
-            self.num_workers = 4
+            self.num_workers = 1
             self.pin_memory = True
             
         else:

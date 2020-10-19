@@ -103,11 +103,11 @@ class PixelSkipped100Dataset(Dataset):
         self.images_array = []
         
         # Open image
-        for i in range(self.length//2):
+        for i in range(self.length):
             self.images_array.append(cv2.imread(os.path.join(self.path_frames, f"{i}.jpg")))
 
     def __len__(self):
-        return self.length//2
+        return self.length
 
     def __getitem__(self, idx):
         
