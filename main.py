@@ -44,8 +44,9 @@ class Main:
         self.epochs = 200 # number of epochs to train for
         self.start_epoch = 0
         self.momentum = 0.5 # Nesterov momentum value
-        self.lr = 3e-4 # Initial learning rate value
-        self.lr_patience = 20 # Number of epochs to wait before reducing lr
+        self.lr = 1e-3 # Initial learning rate value
+        self.lr_patience = 15 # Number of epochs to wait before reducing lr
+        self.lr_threshold = 0.1
         self.train_patience = 50 # Number of epochs to wait before stopping train
 
         # Other params
@@ -94,8 +95,8 @@ class Main:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         
         # Start the scheduler
-        self.scheduler = ReduceLROnPlateau(self.optimizer, "min", patience=self.lr_patience)
-           
+        self.scheduler = ReduceLROnPlateau(self.optimizer, "min", patience=self.lr_patience, threshold=self.lr_threshold)           
+
         # Set the data loader
         self.train_loader, self.valid_loader, self.test_loader = get_data_loader(
             self.batch_size,
