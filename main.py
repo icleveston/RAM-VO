@@ -323,23 +323,23 @@ class Main:
                 R_unsqueeze = R.unsqueeze(1).repeat(1, self.num_glimpses)
                     
                 # Compute losses for differentiable modules
-                loss_action = loss_mse(predicted_denormalized, y)
-                loss_baseline = loss_mse(baselines, R_unsqueeze)
+                loss_action = loss_mse(predicted_denormalized, y) / 100
+                loss_baseline = loss_mse(baselines, R_unsqueeze) * 1000
 
                 # Compute reinforce loss, summed over timesteps and averaged across batch
                 adjusted_reward = R_unsqueeze - baselines.detach()
 
                 loss_reinforce_0 = torch.sum(-log_pi_0 * adjusted_reward, dim=1)
-                loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 0.1
+                loss_reinforce_0 = torch.mean(loss_reinforce_0, dim=0) * 1000
             
                 loss_reinforce_1 = torch.sum(-log_pi_1 * adjusted_reward, dim=1)
-                loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 0.1
+                loss_reinforce_1 = torch.mean(loss_reinforce_1, dim=0) * 1000
 
                 # Join the losses
                 loss = loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1
 
                 # Get the mse
-                mse = loss_action
+                mse = loss_mse(predicted_denormalized.detach(), y)
                 mae = loss_l1(predicted_denormalized.detach(), y)
                 
                 # Store the losses
