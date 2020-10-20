@@ -262,6 +262,8 @@ class GlimpseNetwork(nn.Module):
         self.fc_l_1 = nn.Linear(2, hidden_loc)
         self.fc_l_2 = nn.Linear(hidden_loc, hidden_loc)
         self.fc_l_3 = nn.Linear(hidden_loc, hidden_loc)
+        
+        self.fc_bn = nn.BatchNorm1d(hidden_glimpse+hidden_loc)
 
     def forward(self, x, l_t_prev):
         
@@ -280,7 +282,10 @@ class GlimpseNetwork(nn.Module):
         l_out_3 = self.fc_l_3(l_out_2)
 
         # Concat the location and glimpses
-        g_t = F.relu(torch.cat((phi_out_3, l_out_3), dim=1))
+        g_t = torch.cat((phi_out_3, l_out_3), dim=1)
+        
+        # Apply batch_norm
+        g_t = F.relu(self.fc_bn(g_t))
 
         return g_t
 
@@ -328,6 +333,8 @@ class CoreNetwork(nn.Module):
         self.h2h_1 = nn.Linear(hidden_size, hidden_size)
         self.h2h_2 = nn.Linear(hidden_size, hidden_size//2)
         
+        self.fc_bn = nn.BatchNorm1d(hidden_size)
+        
         #self.rnn = []
         
         #for i in range(1):
@@ -345,7 +352,9 @@ class CoreNetwork(nn.Module):
         h2_1 = F.relu(self.h2h_1(h_state_prev))
         h2_2 = self.h2h_2(h2_1)
         
-        h_state = F.relu(torch.cat((h1_2, h2_2), dim=1))
+        h_state = torch.cat((h1_2, h2_2), dim=1)
+        
+        h_state = F.relu(self.fc_bn(h_state))
         
         return h_state
         
