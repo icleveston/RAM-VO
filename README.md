@@ -1,7 +1,7 @@
 
 ## R-RAM or RAM-VO
 
-<h3>[*] Baseline Adjust Weigths (20/10)</h3>
+<h3>[*] Baseline Adjusted Weigths (20/10)</h3>
 
 <h5>Metrics on Test </h5>
 <img src="out/exec_4_16_3_2_2020_10_20_11_06_53/metrics.svg" width="25%" />
