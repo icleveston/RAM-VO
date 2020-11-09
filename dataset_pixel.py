@@ -97,7 +97,7 @@ class PixelSkipped100Dataset(Dataset):
         self.content = [x.strip() for x in self.content] 
         
         # Count the groundtruth lines
-        self.length = len(self.content)-2
+        self.length = (len(self.content)-2)//2
         
         # The image array
         self.images_array = []

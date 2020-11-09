@@ -6,11 +6,14 @@ import argparse
 import pandas as pd
 import torch
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchviz import make_dot, make_dot_from_trace
 from tqdm import tqdm
 from model import RecurrentAttention
 from utils import *
 from data_loader import get_data_loader
+torch.set_printoptions(threshold=10_000)
 
 
 class Main:
@@ -153,7 +156,7 @@ class Main:
                 self._load_checkpoint(best=False)            
             
             print(f"[*] Output Folder: {self.model_name}")
-            
+                    
             # Print the model info
             count_parameters(self.model, print_table=False)
             
@@ -292,6 +295,9 @@ class Main:
                     # Get the prediction on the last glimpse
                     is_last = t==self.num_glimpses-1
                     
+                    # Plot the graph
+                    make_dot(self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last), params=dict(self.model.named_parameters()))
+                                        
                     # Call the model
                     h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
     
@@ -374,8 +380,8 @@ class Main:
                 if i == 0:
                     
                     # Format the data for storage
-                    img_0 = [g.cpu().data.numpy().squeeze() for g in x_1]
-                    img_1 = [g.cpu().data.numpy().squeeze() for g in x_0]
+                    img_0 = [g.cpu().data.numpy().squeeze() for g in x_0]
+                    img_1 = [g.cpu().data.numpy().squeeze() for g in x_1]
                     loc_0 = [l.cpu().data.numpy() for l in glimpse_location_0]
                     loc_1 = [l.cpu().data.numpy() for l in glimpse_location_1]
                     
@@ -496,6 +502,7 @@ class Main:
         mse_all = []
         mae_all = []
         samples = []
+        glimpses = []
         
         print(f"[*] Test on {self.num_test} samples")
         
@@ -514,23 +521,56 @@ class Main:
             h_state, c_state, l_t_0, l_t_1 = self._reset()
 
             predicted = None
-
+            
+            l_t_0_acc = []
+            l_t_1_acc = []
+            phi_0_acc = []
+            phi_1_acc = []
+            x_0_acc = []
+            x_1_acc = []
+            
             # For each glimpse
             for t in range(self.num_glimpses):
                 
                 # Get the prediction on the last glimpse
                 is_last = t==self.num_glimpses-1
                 
+                x_0_acc.append(x_0[1])
+                x_1_acc.append(x_1[1])
+                
+                l_t_0_acc.append(l_t_0[1])
+                l_t_1_acc.append(l_t_1[1])
+                
                 # Call the model
-                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
-
+                h_state, l_t_0, l_t_1, _, predicted, _, _, phi_0, phi_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                
+                phi_0_acc.append(phi_0[1])
+                phi_1_acc.append(phi_1[1])
+            
             # Denormalize the predictions
             predicted_denormalized = torch.stack([denormalize_displacement(l, 100) for l in predicted])
             
-            # Save only the first 10 mini-batches
-            if i <= 10:
-                # Save the first prediction for the each batch
-                samples.append([x_0[0], x_1[0], y[0].data, predicted_denormalized[0].data])
+            # For the first minibatch
+            if i == 0:
+                
+                # Save the first prediction
+                samples = [[h.cpu().numpy(), p.cpu().numpy()] for h, p in zip(y, predicted_denormalized)][:10]
+
+                # Store the glimpses for the 10 first inputs
+                for a, b, c, d, e, f in zip(x_0_acc, x_1_acc, l_t_0_acc, l_t_1_acc, phi_0_acc, phi_1_acc):
+                    
+                    glimpses.append([
+                                    a.cpu().data.numpy().squeeze(),
+                                    b.cpu().data.numpy().squeeze(),
+                                    c.cpu().data.numpy(),
+                                    d.cpu().data.numpy(),
+                                    bool(torch.max(e).item()),
+                                    bool(torch.max(f).item())
+                                ])
+
+                # Dump the glimpses
+                with open(os.path.join(self.glimpse_path, f"glimpses_epoch_test.p"), "wb") as f:
+                    pickle.dump(glimpses, f)
             
             # Compute the losses
             mse = loss_mse(predicted_denormalized.detach(), y)
@@ -541,9 +581,9 @@ class Main:
        
         mse_all = sum(mse_all)/len(mse_all)
         mae_all = sum(mae_all)/len(mae_all)
-            
+                   
         # Save the results as image
-        self._save_results([mse_all, mae_all, samples])
+        self._save_results([mse_all, mae_all, samples, []])
 
     def _reset(self):
         
@@ -626,7 +666,7 @@ class Main:
         checkpoint_path = os.path.join(self.checkpoint_path, filename)
         
         # Load the checkpoint
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device)
 
         # Load the variables from checkpoint
         self.start_epoch = checkpoint["epoch"]
@@ -664,7 +704,6 @@ class Main:
         df = pd.DataFrame()
         df['MSE'] = [round(data[0], 4)]
         df['MAE'] = [round(data[1], 4)]
-        
         df = df.astype(str)
         
         print(df)
@@ -678,8 +717,8 @@ class Main:
         
         for e in data[2]:
             
-            p = list(map(lambda x: round(x, 2), e[3].cpu().numpy()))
-            q = e[2].cpu().numpy()
+            p = list(map(lambda x: round(x, 2), e[0]))
+            q = list(map(lambda x: round(x, 2), e[1]))
             
             predictions.append(p)
             ground_truth.append(q)
@@ -691,7 +730,6 @@ class Main:
         df['Predicted'] = predictions
         df['Ground-truth'] = ground_truth
         df['MAE'] = list(map(lambda x: "%.3f" % x, mae))
-        
         df = df.astype(str)
         
         print(df)
@@ -699,7 +737,33 @@ class Main:
         # Save the table
         render_table(df, self.output_path, 'predictions.svg', col_width=3)
         
-
+        input_df = []
+        g_0 = []
+        g_1 = []
+        g_2 = []
+        g_3 = []
+        
+        for i, e in enumerate(data[3]):
+            
+            input_df.append(i)          
+            
+            g_0.append(str(e[0][0])+"/"+str(e[0][1]))
+            g_1.append(str(e[1][0])+"/"+str(e[1][1]))
+            g_2.append(str(e[2][0])+"/"+str(e[2][1]))
+            g_3.append(str(e[3][0])+"/"+str(e[3][1]))
+        
+        df = pd.DataFrame()
+        df['Input'] = input_df
+        df['Glimpse 1'] = g_0
+        df['Glimpse 2'] = g_1
+        df['Glimpse 3'] = g_2
+        df['Glimpse 4'] = g_3
+        df = df.astype(str)
+        
+        # Save the table
+        render_table(df, self.output_path, 'glimpses.svg', col_width=3)
+        
+        
 def parse_arguments():
     
     arg = argparse.ArgumentParser()
@@ -709,6 +773,7 @@ def parse_arguments():
     args = vars(arg.parse_args())
     
     return args["test"], args["resume"]
+
 
 if __name__ == "__main__":
     
