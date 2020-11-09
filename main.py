@@ -294,7 +294,7 @@ class Main:
                     is_last = t==self.num_glimpses-1
                                         
                     # Call the model
-                    h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                    h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1, phi_0, phi_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
     
                     # Store the glimpse location for both frames
                     glimpse_location_0.append(l_t_0)
@@ -431,7 +431,7 @@ class Main:
                 is_last = t==self.num_glimpses-1
                 
                 # Call the model
-                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1, phi_0, phi_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
 
                 # Store the glimpse location for both frames
                 glimpse_location_0.append(l_t_0)
