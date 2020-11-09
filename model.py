@@ -82,8 +82,8 @@ class RecurrentAttention(nn.Module):
         """
         predicted = None
         
-        g_t_0 = self.sensor_0(x_0, l_t_prev_0)
-        g_t_1 = self.sensor_1(x_1, l_t_prev_1)
+        g_t_0, phi_0 = self.sensor_0(x_0, l_t_prev_0)
+        g_t_1, phi_1 = self.sensor_1(x_1, l_t_prev_1)
         
         g_t = torch.cat((g_t_0, g_t_1), dim=1)
     
@@ -98,7 +98,7 @@ class RecurrentAttention(nn.Module):
         if last:
             predicted = self.regressor(h_state)
 
-        return h_state, l_t_0, l_t_1, b_t, predicted, log_pi_0, log_pi_1
+        return h_state, l_t_0, l_t_1, b_t, predicted, log_pi_0, log_pi_1, phi_0, phi_1
 
 
 class Retina:
@@ -287,7 +287,7 @@ class GlimpseNetwork(nn.Module):
         # Apply batch_norm
         g_t = F.relu(self.fc_bn(g_t))
 
-        return g_t
+        return g_t, phi
 
 
 class CoreNetwork(nn.Module):
