@@ -292,9 +292,6 @@ class Main:
                     
                     # Get the prediction on the last glimpse
                     is_last = t==self.num_glimpses-1
-                    
-                    # Plot the graph
-                    make_dot(self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last), params=dict(self.model.named_parameters()))
                                         
                     # Call the model
                     h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
