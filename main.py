@@ -6,9 +6,7 @@ import argparse
 import pandas as pd
 import torch
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchviz import make_dot, make_dot_from_trace
 from tqdm import tqdm
 from model import RecurrentAttention
 from utils import *
