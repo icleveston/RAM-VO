@@ -55,6 +55,7 @@ class Main:
         self.best = True # Load best model or most recent for testing
         self.print_freq = 10 # How frequently to print training details
         self.pin_memory = False
+        self.preload = False
         self.best_valid_acc = 10000000.0
         self.counter = 0
         
@@ -70,6 +71,7 @@ class Main:
             
             self.num_workers = 1
             self.pin_memory = True
+            self.preload = True
             
         else:
             self.device = torch.device("cpu")
@@ -104,7 +106,8 @@ class Main:
             self.valid_size,
             self.test_size,
             self.num_workers,
-            self.pin_memory
+            self.pin_memory,
+            self.preload,
         )
         
         self.num_train = len(self.train_loader.sampler)

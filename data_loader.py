@@ -12,7 +12,8 @@ def get_data_loader(
     valid_size=0.2,
     test_size=0.1,
     num_workers=4,
-    pin_memory=False
+    pin_memory=False,
+    preload=False
 ):
     """Get the data loaders.
 
@@ -40,7 +41,7 @@ def get_data_loader(
     # Call the dataset
     #dataset = PixelUniformDataset(trans=trans)
     #dataset = PixelSkipped25Dataset(trans=trans)
-    dataset = PixelSkipped100Dataset(trans=trans)
+    dataset = PixelSkipped100Dataset(trans=trans, preload=preload)
     #dataset = BallDataset(trans=trans)
 
     # Get the dataset size

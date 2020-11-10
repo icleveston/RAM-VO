@@ -17,7 +17,7 @@ motion_options = [
 
 class PixelContinuous100Dataset(Dataset):
 
-    def __init__(self, trans):
+    def __init__(self, trans, preload=False):
            
         self.name = "PixelContinuous100"
         self.trans = trans
@@ -40,10 +40,15 @@ class PixelContinuous100Dataset(Dataset):
         self.length = len(self.content)-2
         
         # The image array
-        #self.images_array = []
+        self.images_array = []
         
-        # Open image
-        #for i in range(self.length):
+        if self.preload:
+            
+            # Load the compressed file
+            data = np.load(os.path.join(data_dir, "dataset.npz"))
+            
+            self.content = data['y']
+            self.images_array = data['x']
 
     def __len__(self):
         return self.length
@@ -53,11 +58,15 @@ class PixelContinuous100Dataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        image_1 = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
-        image_2 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
-
-        # Concat the two images
-        images = [self.trans(image_1), self.trans(image_2)]
+        if self.preload:
+            image_1 = self.images_array[idx]
+            image_2 = self.images_array[idx+1]
+        else:
+            image_1 = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
+            image_2 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
+        
+        # Apply the transformations
+        images = torch.stack([self.trans(image_1), self.trans(image_2)])
         
         # Read the ground truth
         coordinates_t = self.content[idx].split(',')
@@ -77,7 +86,7 @@ class PixelContinuous100Dataset(Dataset):
     
 class PixelSkipped100Dataset(Dataset):
 
-    def __init__(self, trans):
+    def __init__(self, trans, preload=False):
            
         self.name = "PixelSkipped100"
         self.trans = trans
@@ -102,9 +111,13 @@ class PixelSkipped100Dataset(Dataset):
         # The image array
         self.images_array = []
         
-        # Open image
-        for i in range(self.length):
-            self.images_array.append(cv2.imread(os.path.join(self.path_frames, f"{i}.jpg")))
+        if self.preload:
+            
+            # Load the compressed file
+            data = np.load(os.path.join(data_dir, "dataset.npz"))
+            
+            self.content = data['y']
+            self.images_array = data['x']
 
     def __len__(self):
         return self.length
@@ -114,11 +127,15 @@ class PixelSkipped100Dataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 	
-        #image_1 = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
-        #image_2 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
-
-        # Concat the two images
-        images = [self.trans(self.images_array[idx]), self.trans(self.images_array[idx+1])]
+        if self.preload:
+            image_1 = self.images_array[idx]
+            image_2 = self.images_array[idx+1]
+        else:
+            image_1 = cv2.imread(os.path.join(self.path_frames, f"{idx}.jpg"))
+            image_2 = cv2.imread(os.path.join(self.path_frames, f"{idx+1}.jpg"))
+            
+        # Apply the transformations
+        images = [self.trans(image_1), self.trans(image_2)]
         
         # Read the ground truth
         coordinates_t = self.content[idx].split(',')
