@@ -15,7 +15,7 @@
 <img src="out/exec_4_16_3_2_2020_10_19_19_01_16/predictions.svg" width="50%" />
 
 <h5>Glimpse Motion on Test for the Best Model</h5>
-<img src="out/exec_4_16_3_2_2020_10_19_19_01_16/epoch_200.gif" width="80%" />
+<img src="out/exec_4_16_3_2_2020_10_19_19_01_16/epoch_test.gif" width="80%" />
 
 <h5>Losses</h5>
 <img src="out/exec_4_16_3_2_2020_10_19_19_01_16/loss.svg" width="100%" />

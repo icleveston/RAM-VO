@@ -178,7 +178,7 @@ class Main:
             self.loss_path = os.path.join(self.output_path, 'loss')
             
             # Load the model
-            self._load_checkpoint(best=False)  
+            self._load_checkpoint(best=True)  
             
             # Print the model info
             count_parameters(self.model, print_table=False)

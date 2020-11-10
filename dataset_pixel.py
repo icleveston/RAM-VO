@@ -21,7 +21,8 @@ class PixelContinuous100Dataset(Dataset):
            
         self.name = "PixelContinuous100"
         self.trans = trans
-           
+        self.preload = preload
+
         data_dir = 'dataset/pixel_continuous_100/00/'
         
         self.path_frames = os.path.join(data_dir, 'images')
@@ -90,6 +91,7 @@ class PixelSkipped100Dataset(Dataset):
            
         self.name = "PixelSkipped100"
         self.trans = trans
+        self.preload = preload
            
         data_dir = 'dataset/pixel_skipped_100/00/'
         
