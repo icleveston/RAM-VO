@@ -25,14 +25,23 @@ def main(data_dir, minibatch, save):
     # Count the files inside the folder
     count_files = len(next(os.walk(basepath))[2])
     
-    mse_array = []
-    mae_array = []
-    reward_array = []
-    loss_action_array = []
-    loss_baseline_array = []
-    loss_reinforce_0_array = []
-    loss_reinforce_1_array = []
-    loss_all_array = []
+    train_mse_array = []
+    train_mae_array = []
+    train_reward_array = []
+    train_loss_action_array = []
+    train_loss_baseline_array = []
+    train_loss_reinforce_0_array = []
+    train_loss_reinforce_1_array = []
+    train_loss_all_array = []
+    
+    val_mse_array = []
+    val_mae_array = []
+    val_reward_array = []
+    val_loss_action_array = []
+    val_loss_baseline_array = []
+    val_loss_reinforce_0_array = []
+    val_loss_reinforce_1_array = []
+    val_loss_all_array = []
     
     interations = None
     
@@ -44,36 +53,68 @@ def main(data_dir, minibatch, save):
         # Read the pickle files
         losses = pickle.load(open(path, "rb"))
         
-        # Convert losses to numpy
-        losses = map(np.asarray, losses)
+        # Separate between train and validation
+        train_loss, val_loss = losses
         
         # Unpack the losses
-        mse, mae, reward, loss_action, loss_baseline, loss_reinforce_0, loss_reinforce_1 = losses
-        
+        train_mse, train_mae, train_reward, train_loss_action, train_loss_baseline, train_loss_reinforce_0, train_loss_reinforce_1 = train_loss
+        val_mse, val_mae, val_reward, val_loss_action, val_loss_baseline, val_loss_reinforce_0, val_loss_reinforce_1 = val_loss
+
         if interations is None:
-            interations = len(mse)
+            interations = len(train_mse)
             
         if not minibatch:
-            mse = np.array(mse.sum()/interations)
-            mae = np.array(mae.sum()/interations)
-            reward = np.array(reward.sum()/interations)
-            loss_action = np.array(loss_action.sum()/interations)
-            loss_baseline = np.array(loss_baseline.sum()/interations)
-            loss_reinforce_0 = np.array(loss_reinforce_0.sum()/interations)
-            loss_reinforce_1 = np.array(loss_reinforce_1.sum()/interations)
+            train_mse = np.array(train_mse.sum()/interations)
+            train_mae = np.array(train_mae.sum()/interations)
+            train_reward = np.array(train_reward.sum()/interations)
+            train_loss_action = np.array(train_loss_action.sum()/interations)
+            train_loss_baseline = np.array(train_loss_baseline.sum()/interations)
+            train_loss_reinforce_0 = np.array(train_loss_reinforce_0.sum()/interations)
+            train_loss_reinforce_1 = np.array(train_loss_reinforce_1.sum()/interations)
             
-        # Concat the losses for all epochs
-        mse_array = np.concatenate((mse_array, mse), axis=None)
-        mae_array = np.concatenate((mae_array, mae), axis=None)
-        reward_array = np.concatenate((reward_array, reward), axis=None)
-        loss_action_array = np.concatenate((loss_action_array, loss_action), axis=None)
-        loss_baseline_array = np.concatenate((loss_baseline_array, loss_baseline), axis=None)
-        loss_reinforce_0_array = np.concatenate((loss_reinforce_0_array, loss_reinforce_0), axis=None)
-        loss_reinforce_1_array = np.concatenate((loss_reinforce_1_array, loss_reinforce_1), axis=None)
-        loss_all_array = np.concatenate((loss_all_array, [loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1]), axis=None)
+        # Concat the losses for all epochs for train
+        train_mse_array = np.concatenate((train_mse_array, train_mse), axis=None)
+        train_mae_array = np.concatenate((train_mae_array, train_mae), axis=None)
+        train_reward_array = np.concatenate((train_reward_array, train_reward), axis=None)
+        train_loss_action_array = np.concatenate((train_loss_action_array, train_loss_action), axis=None)
+        train_loss_baseline_array = np.concatenate((train_loss_baseline_array, train_loss_baseline), axis=None)
+        train_loss_reinforce_0_array = np.concatenate((train_loss_reinforce_0_array, train_loss_reinforce_0), axis=None)
+        train_loss_reinforce_1_array = np.concatenate((train_loss_reinforce_1_array, train_loss_reinforce_1), axis=None)
+        train_loss_all_array = np.concatenate((train_loss_all_array, 
+                                               [train_loss_action + train_loss_baseline + train_loss_reinforce_0 + train_loss_reinforce_1]), axis=None)
+        
+        
+        # Concat the losses for all epochs for validation
+        val_mse_array = np.concatenate((val_mse_array, val_mse), axis=None)
+        val_mae_array = np.concatenate((val_mae_array, val_mae), axis=None)
+        val_reward_array = np.concatenate((val_reward_array, val_reward), axis=None)
+        val_loss_action_array = np.concatenate((val_loss_action_array, val_loss_action), axis=None)
+        val_loss_baseline_array = np.concatenate((val_loss_baseline_array, val_loss_baseline), axis=None)
+        val_loss_reinforce_0_array = np.concatenate((val_loss_reinforce_0_array, val_loss_reinforce_0), axis=None)
+        val_loss_reinforce_1_array = np.concatenate((val_loss_reinforce_1_array, val_loss_reinforce_1), axis=None)
+        val_loss_all_array = np.concatenate((val_loss_all_array, 
+                                               [val_loss_action + val_loss_baseline + val_loss_reinforce_0 + val_loss_reinforce_1]), axis=None)
+    
+    mse_array = [train_mse_array, val_mse_array]
+    mae_array = [train_mae_array, val_mae_array]
+    reward_array = [train_reward_array, val_reward_array]
+    loss_action_array = [train_loss_action_array, val_loss_action_array]
+    loss_baseline_array = [train_loss_baseline_array, val_loss_baseline_array]
+    loss_reinforce_0_array = [train_loss_reinforce_0_array, val_loss_reinforce_0_array]
+    loss_reinforce_1_array = [train_loss_reinforce_1_array, val_loss_reinforce_1_array]
+    loss_all_array = [train_loss_all_array, val_loss_all_array]
     
     # Build the plot order array
-    plot_order_array = [mse_array, mae_array, reward_array, loss_all_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array]
+    plot_order_array = [
+        mse_array,
+        mae_array, 
+        reward_array, 
+        loss_all_array, 
+        loss_action_array, 
+        loss_baseline_array, 
+        loss_reinforce_0_array, 
+        loss_reinforce_1_array
+    ]
     
     # Define the subplots titles
     titles = ['MSE', 'MAE', 'Reward', 'All Losses', 'Action Loss (MSE)', 'Baseline Loss (MSE)', 'Reinforce Loss 0', 'Reinforce Loss 1']
@@ -91,8 +132,15 @@ def main(data_dir, minibatch, save):
     
     for i, ax in enumerate(axs.flat):
         
-        # Plot the data
-        ax.plot(plot_order_array[i])
+        # Plot the train and validation data
+        ax.plot(plot_order_array[i][0], label="Train")
+        
+        if not minibatch:
+            ax.plot(plot_order_array[i][1], label="Validation")
+        else:
+            
+            # Get only the train data
+            plot_order_array[i] = plot_order_array[i][0]
         
         ax.set_title(titles[i])
         
@@ -113,6 +161,8 @@ def main(data_dir, minibatch, save):
         # Or if you want different settings for the grids:
         ax.grid(which='minor', alpha=0.5)
         ax.grid(which='major', alpha=0.8)
+        
+        ax.legend()
         
     if not save:
         plt.show()

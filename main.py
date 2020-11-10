@@ -107,7 +107,7 @@ class Main:
             self.test_size,
             self.num_workers,
             self.pin_memory,
-            self.preload,
+            self.preload
         )
         
         self.num_train = len(self.train_loader.sampler)
@@ -203,18 +203,18 @@ class Main:
             print(f"\nEpoch: {epoch+1}/{self.epochs} - LR: {current_lr}")
 
             # Train one epoch
-            train_loss, train_mse, train_mae = self._train_one_epoch(epoch)
+            train_loss, train_mse, train_mae, train_data = self._train_one_epoch(epoch)
 
             # Validate one epoch
-            valid_loss, valid_mse, valid_mae = self.validate(epoch)
+            val_loss, val_mse, val_mae, val_data = self.validate(epoch)
 
             # Reduce lr if validation loss plateaus
-            self.scheduler.step(valid_mae)
+            self.scheduler.step(val_mae)
 
             # Check if it is the best model
-            is_best = valid_mse < self.best_valid_acc
+            is_best = val_mse < self.best_valid_acc
             
-            msg = "train loss: {:.3f}, mse: {:.3f}, mae: {:.3f} | val loss: {:.3f}, mse: {:.3f}, mae: {:.3f}"
+            msg = "loss: {:.3f}, mse: {:.3f}, mae: {:.3f} | val loss: {:.3f}, val mse: {:.3f}, val mae: {:.3f}"
             
             # Check for improvement
             if is_best:
@@ -223,13 +223,9 @@ class Main:
             else:
                 self.counter += 1
             
-            print(msg.format(train_loss, train_mse, train_mae, valid_loss, valid_mse, valid_mae))
-                
-            #if self.counter > self.train_patience:
-            #    print("[!] No improvement in a while, stopping training.")
-            #    return
+            print(msg.format(train_loss, train_mse, train_mae, val_loss, val_mse, val_mae))
             
-            self.best_valid_acc = min(valid_mse, self.best_valid_acc)
+            self.best_valid_acc = min(val_mse, self.best_valid_acc)
             
             # Save the checkpoint for each epoch
             self._save_checkpoint({
@@ -239,8 +235,15 @@ class Main:
                     "best_valid_acc": self.best_valid_acc,
                 }, is_best
             )
+            
+            # Dump the losses
+            with open(os.path.join(self.loss_path, f"loss_epoch_{epoch+1}.p"), "wb") as f:
+                
+                data = (train_data, val_data)
+                
+                pickle.dump(data, f)
 
-    def _train_one_epoch(self, epoch):
+    def _train_one_epoch(self, epoch, save_glimpse=False):
         """
         Train the model for 1 epoch of the training set.
 
@@ -297,7 +300,7 @@ class Main:
                     is_last = t==self.num_glimpses-1
                                         
                     # Call the model
-                    h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1, phi_0, phi_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                    h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1, _, _ = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
     
                     # Store the glimpse location for both frames
                     glimpse_location_0.append(l_t_0)
@@ -373,9 +376,15 @@ class Main:
                 
                 # Update the bar
                 pbar.update(self.batch_size)
-
+                
+                # Build the train data array
+                train_data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
+                
+                # Convert to numpy array
+                train_data = map(np.asarray, train_data)
+            
                 # Save glimpses for the first batch
-                if i == 0:
+                if i == 0 and save_glimpse:
                     
                     # Format the data for storage
                     img_0 = [g.cpu().data.numpy().squeeze() for g in x_0]
@@ -390,14 +399,7 @@ class Main:
                     with open(os.path.join(self.glimpse_path, f"glimpses_epoch_{epoch+1}.p"), "wb") as f:
                         pickle.dump(data, f)
 
-            # Dump the loss
-            with open(os.path.join(self.loss_path, f"loss_epoch_{epoch+1}.p"), "wb") as f:
-                
-                data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
-                
-                pickle.dump(data, f)
-
-            return losses.avg, mse_bar.avg, mae_bar.avg
+            return losses.avg, mse_bar.avg, mae_bar.avg, train_data
 
     @torch.no_grad()
     def validate(self, epoch):
@@ -406,6 +408,15 @@ class Main:
         losses = AverageMeter()
         mse_bar = AverageMeter()
         mae_bar = AverageMeter()
+            
+        # Store the losses array
+        loss_action_array = []
+        loss_baseline_array = []
+        loss_reinforce_0_array = []
+        loss_reinforce_1_array = []
+        mse_array = []
+        mae_array = []
+        reward_array = []
 
         for i, (x, y) in enumerate(self.valid_loader):
                 
@@ -434,7 +445,7 @@ class Main:
                 is_last = t==self.num_glimpses-1
                 
                 # Call the model
-                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1, phi_0, phi_1 = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
+                h_state, l_t_0, l_t_1, b_t, predicted, p_0, p_1, _, _ = self.model(x_0, x_1, l_t_0, l_t_1, h_state, c_state, last=is_last)
 
                 # Store the glimpse location for both frames
                 glimpse_location_0.append(l_t_0)
@@ -482,13 +493,28 @@ class Main:
             # Get the mse
             mse = loss_action
             mae = loss_l1(predicted_denormalized.detach(), y)
+            
+            # Store the losses
+            loss_action_array.append(loss_action.cpu().data.numpy())
+            loss_baseline_array.append(loss_baseline.cpu().data.numpy())
+            loss_reinforce_0_array.append(loss_reinforce_0.cpu().data.numpy())
+            loss_reinforce_1_array.append(loss_reinforce_1.cpu().data.numpy())
+            mse_array.append(mse.cpu().data.numpy())
+            mae_array.append(mae.cpu().data.numpy())
+            reward_array.append(torch.mean(R).cpu().data.numpy())  
 
             # Store the loss and metric
             losses.update(loss.item(), x_0.size()[0])
             mse_bar.update(mse.item(), x_0.size()[0])
             mae_bar.update(mae.item(), x_0.size()[0])
+            
+            # Build the validation data array
+            validation_data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
+            
+            # Convert to numpy array
+            validation_data = map(np.asarray, validation_data)
 
-        return losses.avg, mse_bar.avg, mae_bar.avg
+        return losses.avg, mse_bar.avg, mae_bar.avg, validation_data
 
     @torch.no_grad()
     def test(self):
@@ -581,7 +607,7 @@ class Main:
         mae_all = sum(mae_all)/len(mae_all)
                    
         # Save the results as image
-        self._save_results([mse_all, mae_all, samples, []])
+        self._save_results(mse_all, mae_all, samples, glimpses)
 
     def _reset(self):
         
@@ -697,11 +723,11 @@ class Main:
         # Render the table
         render_table(df, self.output_path, 'config.svg')
         
-    def _save_results(self, data):
+    def _save_results(self, mse_all, mae_all, samples, glimpses):
     
         df = pd.DataFrame()
-        df['MSE'] = [round(data[0], 4)]
-        df['MAE'] = [round(data[1], 4)]
+        df['MSE'] = [round(mse_all, 4)]
+        df['MAE'] = [round(mae_all, 4)]
         df = df.astype(str)
         
         print(df)
@@ -713,7 +739,7 @@ class Main:
         ground_truth = []
         mae = []
         
-        for e in data[2]:
+        for e in samples:
             
             p = list(map(lambda x: round(x, 2), e[0]))
             q = list(map(lambda x: round(x, 2), e[1]))
@@ -735,31 +761,31 @@ class Main:
         # Save the table
         render_table(df, self.output_path, 'predictions.svg', col_width=3)
         
-        input_df = []
-        g_0 = []
-        g_1 = []
-        g_2 = []
-        g_3 = []
+        #input_df = []
+        #g_0 = []
+        #g_1 = []
+        #g_2 = []
+        #g_3 = []
         
-        for i, e in enumerate(data[3]):
+        #for i, e in enumerate(glimpses):
             
-            input_df.append(i)          
+            #input_df.append(i)          
             
-            g_0.append(str(e[0][0])+"/"+str(e[0][1]))
-            g_1.append(str(e[1][0])+"/"+str(e[1][1]))
-            g_2.append(str(e[2][0])+"/"+str(e[2][1]))
-            g_3.append(str(e[3][0])+"/"+str(e[3][1]))
+            #g_0.append(str(e[0][0])+"/"+str(e[0][1]))
+            #g_1.append(str(e[1][0])+"/"+str(e[1][1]))
+            #g_2.append(str(e[2][0])+"/"+str(e[2][1]))
+            #g_3.append(str(e[3][0])+"/"+str(e[3][1]))
         
-        df = pd.DataFrame()
-        df['Input'] = input_df
-        df['Glimpse 1'] = g_0
-        df['Glimpse 2'] = g_1
-        df['Glimpse 3'] = g_2
-        df['Glimpse 4'] = g_3
-        df = df.astype(str)
+        #df = pd.DataFrame()
+        #df['Input'] = input_df
+        #df['Glimpse 1'] = g_0
+        #df['Glimpse 2'] = g_1
+        #df['Glimpse 3'] = g_2
+        #df['Glimpse 4'] = g_3
+        #df = df.astype(str)
         
-        # Save the table
-        render_table(df, self.output_path, 'glimpses.svg', col_width=3)
+        #Save the table
+        #render_table(df, self.output_path, 'glimpses.svg', col_width=3)
         
         
 def parse_arguments():
