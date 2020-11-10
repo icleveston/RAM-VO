@@ -2,8 +2,7 @@ import numpy as np
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from torch.utils.data import DataLoader
-from dataset_pixel import PixelUniformDataset, PixelSkipped100Dataset
-from dataset_ball import BallDataset
+from dataset import PixelUniformDataset, PixelSkipped100Dataset
 from utils import plot_images
 
 
@@ -39,10 +38,7 @@ def get_data_loader(
     ])
 
     # Call the dataset
-    #dataset = PixelUniformDataset(trans=trans)
-    #dataset = PixelSkipped25Dataset(trans=trans)
     dataset = PixelSkipped100Dataset(trans=trans, preload=preload)
-    #dataset = BallDataset(trans=trans)
 
     # Get the dataset size
     indices = list(range(len(dataset)))
