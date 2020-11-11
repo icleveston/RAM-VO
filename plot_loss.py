@@ -144,8 +144,8 @@ def main(data_dir, minibatch, save):
         
         ax.set_title(titles[i])
         
-        amax = np.amax(plot_order_array[i])
-        amin = np.amin(plot_order_array[i])
+        amax = np.amax(plot_order_array[i][0])
+        amin = np.amin(plot_order_array[i][0])
         amax += amax*0.1
         
         major_ticks = np.arange(amin, amax, (amax-amin)/10)
