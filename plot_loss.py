@@ -43,7 +43,7 @@ def main(data_dir, minibatch, save):
     val_loss_reinforce_1_array = []
     val_loss_all_array = []
     
-    interations = None
+    interations_train = None
     
     for i in range(1, count_files+1):
    
@@ -60,17 +60,26 @@ def main(data_dir, minibatch, save):
         train_mse, train_mae, train_reward, train_loss_action, train_loss_baseline, train_loss_reinforce_0, train_loss_reinforce_1 = train_loss
         val_mse, val_mae, val_reward, val_loss_action, val_loss_baseline, val_loss_reinforce_0, val_loss_reinforce_1 = val_loss
 
-        if interations is None:
-            interations = len(train_mse)
+        if interations_train is None:
+            interations_train = len(train_mse)
+            interations_val = len(val_mse)
             
         if not minibatch:
-            train_mse = np.array(train_mse.sum()/interations)
-            train_mae = np.array(train_mae.sum()/interations)
-            train_reward = np.array(train_reward.sum()/interations)
-            train_loss_action = np.array(train_loss_action.sum()/interations)
-            train_loss_baseline = np.array(train_loss_baseline.sum()/interations)
-            train_loss_reinforce_0 = np.array(train_loss_reinforce_0.sum()/interations)
-            train_loss_reinforce_1 = np.array(train_loss_reinforce_1.sum()/interations)
+            train_mse = np.array(train_mse.sum()/interations_train)
+            train_mae = np.array(train_mae.sum()/interations_train)
+            train_reward = np.array(train_reward.sum()/interations_train)
+            train_loss_action = np.array(train_loss_action.sum()/interations_train)
+            train_loss_baseline = np.array(train_loss_baseline.sum()/interations_train)
+            train_loss_reinforce_0 = np.array(train_loss_reinforce_0.sum()/interations_train)
+            train_loss_reinforce_1 = np.array(train_loss_reinforce_1.sum()/interations_train)
+
+            val_mse = np.array(val_mse.sum()/interations_val)
+            val_mae = np.array(val_mae.sum()/interations_val)
+            val_reward = np.array(val_reward.sum()/interations_val)
+            val_loss_action = np.array(val_loss_action.sum()/interations_val)
+            val_loss_baseline = np.array(val_loss_baseline.sum()/interations_val)
+            val_loss_reinforce_0 = np.array(val_loss_reinforce_0.sum()/interations_val)
+            val_loss_reinforce_1 = np.array(val_loss_reinforce_1.sum()/interations_val)
             
         # Concat the losses for all epochs for train
         train_mse_array = np.concatenate((train_mse_array, train_mse), axis=None)

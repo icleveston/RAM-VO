@@ -376,13 +376,7 @@ class Main:
                 
                 # Update the bar
                 pbar.update(self.batch_size)
-                
-                # Build the train data array
-                train_data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
-                
-                # Convert to numpy array
-                train_data = map(np.asarray, train_data)
-            
+                                            
                 # Save glimpses for the first batch
                 if i == 0 and save_glimpse:
                     
@@ -398,6 +392,12 @@ class Main:
                     # Dump the glimpses
                     with open(os.path.join(self.glimpse_path, f"glimpses_epoch_{epoch+1}.p"), "wb") as f:
                         pickle.dump(data, f)
+                
+            # Build the train data array
+            train_data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
+
+            # Convert to numpy array
+            train_data = map(np.asarray, train_data)
 
             return losses.avg, mse_bar.avg, mae_bar.avg, train_data
 
@@ -508,11 +508,11 @@ class Main:
             mse_bar.update(mse.item(), x_0.size()[0])
             mae_bar.update(mae.item(), x_0.size()[0])
             
-            # Build the validation data array
-            validation_data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
+        # Build the validation data array
+        validation_data = (mse_array, mae_array, reward_array, loss_action_array, loss_baseline_array, loss_reinforce_0_array, loss_reinforce_1_array)
             
-            # Convert to numpy array
-            validation_data = map(np.asarray, validation_data)
+        # Convert to numpy array
+        validation_data = map(np.asarray, validation_data)
 
         return losses.avg, mse_bar.avg, mae_bar.avg, validation_data
 
