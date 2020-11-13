@@ -126,8 +126,8 @@ def main(plot_dir, epoch, save_as_gif):
             glimpse_center_1 = [coordinates_1[input_index][0], coordinates_1[input_index][1]]
 
             # Set the plot title
-            glimpse_0.set_title('Sensor 0 - c: '+ str(glimpse_center_0) + " catch:" + str(catch_0[input_index]), {'fontsize': 10, 'verticalalignment': 'top'}, y=0, loc='center')
-            glimpse_1.set_title('Sensor 1 - c: '+ str(glimpse_center_1) + " catch:" + str(catch_1[input_index]), {'fontsize': 10, 'verticalalignment': 'top'}, y=0, loc='center')
+            glimpse_0.set_title('Sensor 0 - c: '+ str(glimpse_center_0) + " catch:" + str(catch_0[input_index]), {'fontsize': 10, 'verticalalignment': 'top'}, y=1, pad=10, loc='center')
+            glimpse_1.set_title('Sensor 1 - c: '+ str(glimpse_center_1) + " catch:" + str(catch_1[input_index]), {'fontsize': 10, 'verticalalignment': 'top'}, y=1, pad=10, loc='center')
                 
             # Remove all patches previously added
             glimpse_0.patches = []
