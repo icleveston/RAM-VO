@@ -347,7 +347,7 @@ class Main:
                 loss = loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1
 
                 #make_dot(loss_action, params=dict(self.model.named_parameters())).render("ramvo_viz", format="png")
-                make_dot(loss_action).render("ramvo_viz", format="png")
+                make_dot(loss).render("ramvo_viz", format="pdf")
                 exit()
 
                 # Get the mse
