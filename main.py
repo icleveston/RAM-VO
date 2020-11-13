@@ -741,8 +741,8 @@ class Main:
         
         for e in samples:
             
-            p = list(map(lambda x: round(x, 2), e[0]))
-            q = list(map(lambda x: round(x, 2), e[1]))
+            q = list(map(lambda x: round(x, 2), e[0]))
+            p = list(map(lambda x: round(x, 2), e[1]))
             
             predictions.append(p)
             ground_truth.append(q)
