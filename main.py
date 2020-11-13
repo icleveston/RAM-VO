@@ -11,6 +11,7 @@ from tqdm import tqdm
 from model import RecurrentAttention
 from utils import *
 from data_loader import get_data_loader
+from torchviz import make_dot
 torch.set_printoptions(threshold=10_000)
 
 
@@ -344,6 +345,10 @@ class Main:
 
                 # Join the losses
                 loss = loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1
+
+                #make_dot(loss_action, params=dict(self.model.named_parameters())).render("ramvo_viz", format="png")
+                make_dot(loss_action).render("ramvo_viz", format="png")
+                exit()
 
                 # Get the mse
                 mse = loss_action
