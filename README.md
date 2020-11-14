@@ -21,5 +21,6 @@
 <img src="out/exec_4_16_3_2_2020_11_10_12_46_42/loss.svg" width="100%" />
 
 <h5>Backpropagation Model Graph</h5>
-<a href="out/exec_4_16_3_2_2020_11_10_12_46_42/ramvo_dot.pdf">Dot Version<a>
-<a href="out/exec_4_16_3_2_2020_11_10_12_46_42/ramvo_neato.pdf">Neato Version<a>
+<a href="out/exec_4_16_3_2_2020_11_10_12_46_42/ramvo_dot.pdf">Dot Version</a>
+<br />
+<a href="out/exec_4_16_3_2_2020_11_10_12_46_42/ramvo_neato.pdf">Neato Version</a>
