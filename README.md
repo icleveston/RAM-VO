@@ -19,3 +19,6 @@
 
 <h5>Losses</h5>
 <img src="out/exec_4_16_3_2_2020_11_10_12_46_42/loss.svg" width="100%" />
+
+<h5>Graph</h5>
+<img src="out/exec_4_16_3_2_2020_11_10_12_46_42/ramvo_neato.pdf" width="100%" />

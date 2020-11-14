@@ -17,7 +17,7 @@ torch.set_printoptions(threshold=10_000)
 
 class Main:
     
-    def __init__(self, test=None, resume=None):
+    def __init__(self):
         
         # Glimpse Network Params
         self.patch_size = 16 # size of extracted patch at highest res
@@ -114,63 +114,46 @@ class Main:
         self.num_train = len(self.train_loader.sampler)
         self.num_valid = len(self.valid_loader.sampler)
         self.num_test = len(self.test_loader.sampler)
-            
-        # Execute the training or testing
-        if test is None:
-            
-            # Should resume the train
-            if resume is None:
-                
-                # Set the folder time for each execution
-                folder_time = time.strftime("%Y_%m_%d_%H_%M_%S")
 
-                # Set the model name
-                self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
+    def train(self, resume=None, plot_graph=True):
+        """Train the model on the training set.
 
-                # Set the folders
-                self.output_path = os.path.join('out', self.model_name)
-                self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
-                self.glimpse_path = os.path.join(self.output_path, 'glimpse')
-                self.loss_path = os.path.join(self.output_path, 'loss')
-                
-                # Create the folders
-                if not os.path.exists(self.output_path):
-                    os.makedirs(self.output_path)
-                if not os.path.exists(self.checkpoint_path):
-                    os.makedirs(self.checkpoint_path)
-                if not os.path.exists(self.glimpse_path):
-                    os.makedirs(self.glimpse_path)
-                if not os.path.exists(self.loss_path):
-                    os.makedirs(self.loss_path)
+        A checkpoint of the model is saved after each epoch
+        and if the validation accuracy is improved upon,
+        a separate ckpt is created for use on the test set.
+        """
+        
+        self.plot_graph = plot_graph
+        
+        # Should resume the train
+        if resume is None:
             
-            else:
-                
-                # Set the model to be loaded
-                self.model_name = resume
-                
-                # Set the folders
-                self.output_path = os.path.join('out', self.model_name)
-                self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
-                self.glimpse_path = os.path.join(self.output_path, 'glimpse')
-                self.loss_path = os.path.join(self.output_path, 'loss')
-                
-                # Load the model
-                self._load_checkpoint(best=False)            
+            # Set the folder time for each execution
+            folder_time = time.strftime("%Y_%m_%d_%H_%M_%S")
+
+            # Set the model name
+            self.model_name = f"exec_{self.num_glimpses}_{self.patch_size}_{self.num_patches}_{self.glimpse_scale}_{folder_time}"
+
+            # Set the folders
+            self.output_path = os.path.join('out', self.model_name)
+            self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
+            self.glimpse_path = os.path.join(self.output_path, 'glimpse')
+            self.loss_path = os.path.join(self.output_path, 'loss')
             
-            print(f"[*] Output Folder: {self.model_name}")
-                    
-            # Print the model info
-            count_parameters(self.model, print_table=False)
-            
-            # Save the configuration as image
-            self._save_config()
-            
-            self.train()
-            
+            # Create the folders
+            if not os.path.exists(self.output_path):
+                os.makedirs(self.output_path)
+            if not os.path.exists(self.checkpoint_path):
+                os.makedirs(self.checkpoint_path)
+            if not os.path.exists(self.glimpse_path):
+                os.makedirs(self.glimpse_path)
+            if not os.path.exists(self.loss_path):
+                os.makedirs(self.loss_path)
+        
         else:
             
-            # Set the model to load
-            self.model_name = test
+            # Set the model to be loaded
+            self.model_name = resume
             
             # Set the folders
             self.output_path = os.path.join('out', self.model_name)
@@ -179,20 +162,16 @@ class Main:
             self.loss_path = os.path.join(self.output_path, 'loss')
             
             # Load the model
-            self._load_checkpoint(best=True)  
-            
-            # Print the model info
-            count_parameters(self.model, print_table=False)
-            
-            self.test()            
+            self._load_checkpoint(best=False)            
+        
+        print(f"[*] Output Folder: {self.model_name}")
+                
+        # Print the model info
+        count_parameters(self.model, print_table=False)
+        
+        # Save the configuration as image
+        self._save_config()      
 
-    def train(self):
-        """Train the model on the training set.
-
-        A checkpoint of the model is saved after each epoch
-        and if the validation accuracy is improved upon,
-        a separate ckpt is created for use on the test set.
-        """
         print(f"[*] Train on {self.num_train} samples, validate on {self.num_valid} samples")
 
         # For each epoch
@@ -207,7 +186,7 @@ class Main:
             train_loss, train_mse, train_mae, train_data = self._train_one_epoch(epoch)
 
             # Validate one epoch
-            val_loss, val_mse, val_mae, val_data = self.validate(epoch)
+            val_loss, val_mse, val_mae, val_data = self._validate(epoch)
 
             # Reduce lr if validation loss plateaus
             self.scheduler.step(val_mae)
@@ -346,10 +325,6 @@ class Main:
                 # Join the losses
                 loss = loss_action + loss_baseline + loss_reinforce_0 + loss_reinforce_1
 
-                #make_dot(loss_action, params=dict(self.model.named_parameters())).render("ramvo_viz", format="png")
-                make_dot(loss).render("ramvo_viz", format="pdf")
-                exit()
-
                 # Get the mse
                 mse = loss_action
                 mae = loss_l1(predicted_denormalized.detach(), y)
@@ -381,7 +356,16 @@ class Main:
                 
                 # Update the bar
                 pbar.update(self.batch_size)
-                                            
+                
+                # Plot the graph
+                if i == 0 and self.plot_graph:
+                       
+                    print(f"[*] Plotting the graph")
+                    
+                    # Generate the plot
+                    make_dot(loss, params=dict(self.model.named_parameters()), engine="neato").render(os.path.join(self.output_path, "ramvo_neato"), format="pdf", cleanup=True)
+                    make_dot(loss, params=dict(self.model.named_parameters()), engine="dot").render(os.path.join(self.output_path, "ramvo_dot"), format="pdf", cleanup=True)
+
                 # Save glimpses for the first batch
                 if i == 0 and save_glimpse:
                     
@@ -407,7 +391,7 @@ class Main:
             return losses.avg, mse_bar.avg, mae_bar.avg, train_data
 
     @torch.no_grad()
-    def validate(self, epoch):
+    def _validate(self, epoch):
         """Evaluate the RAM model on the validation set.
         """
         losses = AverageMeter()
@@ -522,12 +506,28 @@ class Main:
         return losses.avg, mse_bar.avg, mae_bar.avg, validation_data
 
     @torch.no_grad()
-    def test(self):
+    def test(self, model_name):
         """Test the RAM model.
 
         This function should only be called at the very
         end once the model has finished training.
         """
+        
+        # Set the model to load
+        self.model_name = model_name
+        
+        # Set the folders
+        self.output_path = os.path.join('out', self.model_name)
+        self.checkpoint_path = os.path.join(self.output_path, 'checkpoint')
+        self.glimpse_path = os.path.join(self.output_path, 'glimpse')
+        self.loss_path = os.path.join(self.output_path, 'loss')
+        
+        # Load the model
+        self._load_checkpoint(best=True)  
+        
+        # Print the model info
+        count_parameters(self.model, print_table=False)
+            
         mse_all = []
         mae_all = []
         samples = []
@@ -798,15 +798,21 @@ def parse_arguments():
     arg = argparse.ArgumentParser()
     arg.add_argument("--test", type=str, required=False, help="should train or test")
     arg.add_argument("--resume", type=str, required=False, help="should resume the train")
+    arg.add_argument("--plot_graph", type=str2bool, required=False, help="should plot the graph")
     
     args = vars(arg.parse_args())
     
-    return args["test"], args["resume"]
+    return args
 
 
 if __name__ == "__main__":
     
     args = parse_arguments()
 
-    main = Main(*args)
+    main = Main()
+    
+    if args['test'] is not None:
+        main.test(args['test'])
+    else:
+        main.train(args['resume'], args['plot_graph'])
     
