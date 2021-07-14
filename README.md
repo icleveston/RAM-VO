@@ -95,7 +95,7 @@ python tools/extract_optical_flow.py --seq <sequence> --method <method:(sparse|d
 ```
 
 ## Citation
-|If you use this code and data in your research, please cite our arxiv paper:
+If you use this code and data in your research, please cite our arxiv paper:
 ```
 @article{cleveston2021ram,
   title={RAM-VO: Less is more in Visual Odometry},
