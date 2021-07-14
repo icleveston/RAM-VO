@@ -1,6 +1,13 @@
-# RAM-VO: A Recurrent Attentional Model for Visual Odometry
+# RAM-VO: Less is more in Visual Odometry
 
 ## Introduction
+
+Authors: Iury Cleveston, Esther L. Colombini
+
+Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)
+
+Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
+
 
 Building vehicles capable of operating without human supervision requires the determination of the agent's pose.
 Visual Odometry (VO) algorithms estimate the egomotion using only visual changes from the input images. 
@@ -19,14 +26,10 @@ The contributions of this work are:
 - The first visual odometry architecture that implements reinforcement learning in part of the pipeline;
 - Several experiments on KITTI sequences demonstrating the validity and efficiency of RAM-VO.
 
-Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)
-
-Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
-
 
 ## Instalation
 
-RAM-VO requires Python 3.8. Cuda is not requires, altough recomended
+RAM-VO requires Python 3.8. Cuda is not required, although recommended.
 
 ```bash
 git clone
