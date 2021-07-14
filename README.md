@@ -2,6 +2,8 @@
 
 ## Introduction
 
+![](results/arch.png)
+
 Authors: Iury Cleveston, Esther L. Colombini
 
 Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)
@@ -57,7 +59,7 @@ To generate results, such as metrics, trajectories, and plots:
 
 ### Tools
 
-There is no need to use these scripts directly, the `gen_results.zsh` already call then.
+There is no need to use these scripts directly, the `gen_results.zsh` already call them.
 
 To generate the trajectories and metrics (RPE, ATE):
 ```python
