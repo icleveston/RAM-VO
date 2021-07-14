@@ -1,7 +1,5 @@
 # RAM-VO: Less is more in Visual Odometry
 
-## Introduction
-
 ![](results/arch.png)
 
 Authors: Iury Cleveston, Esther L. Colombini
@@ -95,4 +93,16 @@ To extract the optical flow:
 ```python
 python tools/extract_optical_flow.py --seq <sequence> --method <method:(sparse|dense)>
 ```
+
+## Citation
+|If you use this code and data in your research, please cite our arxiv paper:
+```
+@article{cleveston2021ram,
+  title={RAM-VO: Less is more in Visual Odometry},
+  author={Cleveston, Iury and Colombini, Esther L},
+  journal={arXiv preprint arXiv:2107.02974},
+  year={2021}
+}
+```
+
 
