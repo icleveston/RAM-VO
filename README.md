@@ -1,8 +1,9 @@
 # RAM-VO
+Iury Cleveston, Esther L. Colombini
 
 Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)
 
-Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://arxiv.org/abs/2107.02974)
+Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
 
 ## Abstract
 
@@ -21,7 +22,7 @@ RAM-VO achieves competitive results using only 5.7% of the available visual info
 The contributions of this work are:
 - A lightweight VO method that selects the important input information via attentional mechanisms;
 - The first visual odometry architecture that implements reinforcement learning in part of the pipeline;
-- Several experiments on KITTI~\cite{geiger_vision_2013} sequences demonstrating the validity and efficiency of RAM-VO.
+- Several experiments on KITTI sequences demonstrating the validity and efficiency of RAM-VO.
 
 ## Usage
 
@@ -29,6 +30,8 @@ To train a new model:
 ```python
 python main.py
 ```
+
+this command generates a folder `<out_exec_folder>` inside `out/` containing the model and data from training.
 
 To test a trained model on a specific sequence:
 ```python
@@ -39,3 +42,41 @@ To generate results, such as metrics, trajectories, and plots:
 ```bash
 ./gen_results.zsh <out_exec_folder>
 ```
+
+### Tools
+
+To generate the trajectories and metrics (RPE, ATE):
+```python
+python tools/gen_metrics.py --data_dir <out_exec_folder>
+```
+
+To plot the observations(glimpses):
+```python
+python tools/plot_glimpse.py --dir <out_exec_folder> --epoch test
+```
+
+To plot the loss:
+```python
+python tools/plot_loss.py --data_dir <out_exec_folder> --minibatch false
+```
+
+To plot the heatmap of observations:
+```python
+python tools/plot_heatmap.py --dir <out_exec_folder> --glimpse <glimpse_number> --train false
+```
+
+To plot different trajectory predictions in the same figure:
+```python
+python tools/plot_all_trajectories.py --data_dir <sequence>
+```
+
+To test the retina submodule:
+```python
+python tools/test_retina.py
+```
+
+To extract the optical flow:
+```python
+python tools/extract_optical_flow.py --seq <sequence> --method <method:(sparse|dense)>
+```
+
