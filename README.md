@@ -8,6 +8,7 @@ Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.0297
 
 Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
 
+Demonstration: [](https://www.youtube.com/watch?v=JjSA3lMqxBk)
 
 Building vehicles capable of operating without human supervision requires the determination of the agent's pose.
 Visual Odometry (VO) algorithms estimate the egomotion using only visual changes from the input images. 
