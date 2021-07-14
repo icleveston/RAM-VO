@@ -4,7 +4,7 @@ from torchvision import transforms
 from torch.utils.data.sampler import *
 from torch.utils.data import DataLoader
 from dataset import KittiDatasetOriginal, EurocDataset
-from utils import *
+from utils.utils import *
 torch.multiprocessing.set_sharing_strategy('file_system')
 torch.set_printoptions(profile="full", precision=10, linewidth=100, sci_mode=False)
 

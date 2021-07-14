@@ -8,9 +8,11 @@ import argparse
 import numpy as np
 import copy
 import csv
+import sys
 import os.path
+sys.path.append(os.getcwd())
 import pprint
-from kitti_odometry import KittiEvalOdom
+from utils.kitti_odometry import KittiEvalOdom
 
 
 def parse_arguments():

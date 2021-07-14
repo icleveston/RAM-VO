@@ -1,11 +1,13 @@
+import sys
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torchvision import transforms
+sys.path.append(os.getcwd())
 from ramvo import Retina
-from utils import denormalize, bounding_box
+from utils.utils import *
 from data_loader import get_data_loader
-from utils import *
 torch.set_printoptions(threshold=10_000)
 
 patch_size = 32
@@ -25,7 +27,7 @@ def main():
     ret = Retina(patch_size=patch_size, num_patches=num_patches, glimpse_scale=glimpse_scale)
     
     trans = transforms.Compose([
-                    NormalizeInverse([0.3618432581], [0.2902705073]),
+                    NormalizeInverse([0.4209265411], [0.2889825404]),
                     transforms.ToPILImage()
             ])
 

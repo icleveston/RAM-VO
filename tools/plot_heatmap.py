@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 import re
 import pickle
 import argparse
 import torch
-from utils import heatmap, annotate_heatmap, str2bool
+sys.path.append(os.getcwd())
+from utils.utils import heatmap, annotate_heatmap, str2bool
 
 image_size_x = 1220
 image_size_y = 360

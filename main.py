@@ -13,7 +13,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchvision import transforms
 from tqdm import tqdm
 from ramvo import RAMVO
-from utils import *
+from utils.utils import *
 from ppo import *
 from shutil import copyfile
 from data_loader import get_data_loader

@@ -1,3 +1,4 @@
+import sys
 import os
 import pickle
 import argparse
@@ -6,7 +7,8 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, ImageMagickWriter 
 from torchvision import transforms
-from utils import denormalize, bounding_box, str2bool
+sys.path.append(os.getcwd())
+from utils.utils import denormalize, bounding_box, str2bool
 
 first = True
 image_index = -1

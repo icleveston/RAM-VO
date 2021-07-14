@@ -108,19 +108,6 @@ class PPO:
     def update(self, memory):
         
         rewards = memory.rewards
-        
-        # Monte Carlo estimate of rewards:
-        #rewards = []
-        #discounted_reward = 0
-        #for reward in reversed(memory.rewards):
-        #    if is_terminal:
-        #        discounted_reward = 0
-        #    discounted_reward = reward + (self.gamma * discounted_reward)
-        #    rewards.insert(0, discounted_reward)
-        
-        # Normalizing the rewards:
-
-        #rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-5)
 
         old_states = torch.squeeze(torch.stack(memory.states).to(device), 1).detach()
         old_actions = torch.squeeze(torch.stack(memory.actions).to(device), 1).detach()

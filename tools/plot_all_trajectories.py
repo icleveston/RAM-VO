@@ -9,9 +9,11 @@ import argparse
 import numpy as np
 import copy
 import csv
+import sys
 import os.path
+sys.path.append(os.getcwd())
 import pprint
-from kitti_odometry import KittiEvalOdom
+from utils.kitti_odometry import KittiEvalOdom
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42

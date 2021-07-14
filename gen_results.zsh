@@ -10,8 +10,8 @@ mkdir out/$1/results/train
 mkdir out/$1/results/val
 mkdir out/$1/results/test
 
-python plot_loss.py --data_dir $1 --minibatch=false --save=true
-python plot_loss.py --data_dir $1 --minibatch=true --save=true
+python tools/plot_loss.py --data_dir $1 --minibatch=false --save=true
+python tools/plot_loss.py --data_dir $1 --minibatch=true --save=true
 
 cd out/$1/
 mv loss_epoch.pdf results/loss_epoch.pdf
@@ -21,14 +21,14 @@ cd ../..
 for x in $train_seq
 do 
 	python main.py --test $1 --dataset 'kitti' --test_seq $x
-	python plot_glimpse.py --dir $1/results/$x --epoch test
+	python tools/plot_glimpse.py --dir $1/results/$x --epoch test
 	
 	for g in $glimpses
 	do 
-		python plot_heatmap.py --dir $1/results/$x --glimpse $g --train false
+		python tools/plot_heatmap.py --dir $1/results/$x --glimpse $g --train false
 	done
 	
-	python gen_metrics.py --data_dir $1/results/$x
+	python tools/gen_metrics.py --data_dir $1/results/$x
 	
 	mv out/$1/results/$x out/$1/results/train/$x
 
@@ -37,14 +37,14 @@ done
 for x in $val_seq
 do 
 	python main.py --test $1 --dataset 'kitti' --test_seq $x
-	python plot_glimpse.py --dir $1/results/$x --epoch test
+	python tools/plot_glimpse.py --dir $1/results/$x --epoch test
 	
 	for g in $glimpses
 	do 
-		python plot_heatmap.py --dir $1/results/$x --glimpse $g --train false
+		python tools/plot_heatmap.py --dir $1/results/$x --glimpse $g --train false
 	done
 	
-	python gen_metrics.py --data_dir $1/results/$x
+	python tools/gen_metrics.py --data_dir $1/results/$x
 	
 	mv out/$1/results/$x out/$1/results/val/$x
 
@@ -53,14 +53,14 @@ done
 for x in $test_seq
 do 
 	python main.py --test $1 --dataset 'kitti' --test_seq $x
-	python plot_glimpse.py --dir $1/results/$x --epoch test
+	python tools/plot_glimpse.py --dir $1/results/$x --epoch test
 	
 	for g in $glimpses
 	do 
-		python plot_heatmap.py --dir $1/results/$x --glimpse $g --train false
+		python tools/plot_heatmap.py --dir $1/results/$x --glimpse $g --train false
 	done
 	
-	python gen_metrics.py --data_dir $1/results/$x
+	python tools/gen_metrics.py --data_dir $1/results/$x
 	
 	mv out/$1/results/$x out/$1/results/test/$x
 
