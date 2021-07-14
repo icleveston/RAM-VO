@@ -4,7 +4,7 @@
 
 Authors: Iury Cleveston, Esther L. Colombini
 
-Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)/ [Video](https://www.youtube.com/watch?v=JjSA3lMqxBk)
+Paper & Demo: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974) / [Video](https://www.youtube.com/watch?v=JjSA3lMqxBk)
 
 Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
 
