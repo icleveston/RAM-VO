@@ -4,9 +4,13 @@
 
 Authors: Iury Cleveston, Esther L. Colombini
 
-Paper & Demo: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974) / [Video](https://www.youtube.com/watch?v=JjSA3lMqxBk)
+Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)
 
 Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
+
+Train Demo: [Seq 00](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 02](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 04](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 05](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 06](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 08](https://www.youtube.com/watch?v=JjSA3lMqxBk)  
+
+Test Demo: [Seq 03](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 07](https://www.youtube.com/watch?v=JjSA3lMqxBk), [Seq 10](https://www.youtube.com/watch?v=JjSA3lMqxBk)
 
 Building vehicles capable of operating without human supervision requires the determination of the agent's pose.
 Visual Odometry (VO) algorithms estimate the egomotion using only visual changes from the input images. 
