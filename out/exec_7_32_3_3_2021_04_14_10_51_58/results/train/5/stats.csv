@@ -1,0 +1,6 @@
+metric,value
+Groundtruth Length,2761
+Prediction Length,2688
+RPE trans (%),5.857314617085314
+RPE rot (deg/100m),2.777957901820166
+ATE (m),22.570327562016935
