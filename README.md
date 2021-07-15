@@ -29,9 +29,8 @@ The contributions of this work are:
 
 The experimental results in KITTI are presented for training and testing sequences:
 
-![](results/0/trajectory.png) ![](results/2/trajectory.png) ![](results/4/trajectory.png) ![](results/5/trajectory.png) ![](results/6/trajectory.png)  
-
-![](results/3/trajectory.png) ![](results/7/trajectory.png) ![](results/10/trajectory.png)   
+<img src="results/0/trajectory.png" width="20%"> <img src="results/2/trajectory.png" width="20%"> <img src="results/4/trajectory.png" width="20%"> <img src="results/5/trajectory.png" width="20%"> <img src="results/6/trajectory.png" width="20%">
+ 
 
 
 ## Instalation
@@ -105,10 +104,10 @@ python tools/extract_optical_flow.py --seq <sequence> --method <method:(sparse|d
 
 We also provide alternative branches with RAM-VO implemented with REINFORCE, PPO 256 hidden units, and initial work in regression. The branches are:
 
-- `reinforce`
-- `ppo 256`
-- `city`
-- `pixel`
+- `reinforce` - RAM-VO implemented with the REINFORCE algorithm;
+- `ppo 256` - Lightweight RAM-VO implementation using PPO and 256 hidden units;
+- `city` - The RAM-RC intermediary architecture using the City dataset;
+- `pixel` - The RAM-R intermediary architecture using the Pixel dataset.
 
 ## Citation
 If you use this code and data in your research, please cite our arxiv paper:
