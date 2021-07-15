@@ -27,11 +27,11 @@ The contributions of this work are:
 
 ### Experimental Results
 
-The experimental results in KITTI are presented for training and testing sequences:
+The experimental results in KITTI are presented for training (top row) and testing sequences (bottom row):
 
-<img src="results/0/trajectory.png" width="20%"> <img src="results/2/trajectory.png" width="20%"> <img src="results/4/trajectory.png" width="20%"> <img src="results/5/trajectory.png" width="20%"> <img src="results/6/trajectory.png" width="20%">
+<img src="results/0/trajectory.png" width="20%"> <img src="results/2/trajectory.png" width="20%"> <img src="results/4/trajectory.png" width="20%"> <img src="results/8/trajectory.png" width="20%">
  
-
+<img src="results/3/trajectory.png" width="20%"> <img src="results/7/trajectory.png" width="20%"> <img src="results/10/trajectory.png" width="20%">
 
 ## Instalation
 
@@ -106,8 +106,8 @@ We also provide alternative branches with RAM-VO implemented with REINFORCE, PPO
 
 - `reinforce` - RAM-VO implemented with the REINFORCE algorithm;
 - `ppo 256` - Lightweight RAM-VO implementation using PPO and 256 hidden units;
-- `city` - The RAM-RC intermediary architecture using the City dataset;
-- `pixel` - The RAM-R intermediary architecture using the Pixel dataset.
+- `city` - The RAM-RC using the City dataset;
+- `pixel` - The RAM-R using the Pixel dataset.
 
 ## Citation
 If you use this code and data in your research, please cite our arxiv paper:
