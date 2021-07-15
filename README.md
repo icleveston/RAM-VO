@@ -4,11 +4,9 @@
 
 Authors: Iury Cleveston, Esther L. Colombini
 
-Paper: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974)
+Paper & Demo: [RAM-VO: Less is more in Visual Odometry](https://arxiv.org/abs/2107.02974) / [Video](https://www.youtube.com/watch?v=JjSA3lMqxBk)
 
 Thesis: [RAM-VO: A Recurrent Attentional Model for Visual Odometry](https://icleveston.com/docs/ramvo_thesis.pdf)
-
-Demo: Train [00](https://www.youtube.com/watch?v=JjSA3lMqxBk), [02](https://www.youtube.com/watch?v=JjSA3lMqxBk), [04](https://www.youtube.com/watch?v=JjSA3lMqxBk), [05](https://www.youtube.com/watch?v=JjSA3lMqxBk), [06](https://www.youtube.com/watch?v=JjSA3lMqxBk), [08](https://www.youtube.com/watch?v=JjSA3lMqxBk) | Test [03](https://www.youtube.com/watch?v=JjSA3lMqxBk), [07](https://www.youtube.com/watch?v=JjSA3lMqxBk), [10](https://www.youtube.com/watch?v=JjSA3lMqxBk)  
 
 Building vehicles capable of operating without human supervision requires the determination of the agent's pose.
 Visual Odometry (VO) algorithms estimate the egomotion using only visual changes from the input images. 
@@ -28,6 +26,12 @@ The contributions of this work are:
 - Several experiments on KITTI sequences demonstrating the validity and efficiency of RAM-VO.
 
 ### Experimental Results
+
+The experimental results in KITTI are presented for training and testing sequences:
+
+![](results/0/trajectory.png) ![](results/2/trajectory.png) ![](results/4/trajectory.png) ![](results/5/trajectory.png) ![](results/6/trajectory.png)  
+
+![](results/3/trajectory.png) ![](results/7/trajectory.png) ![](results/10/trajectory.png)   
 
 
 ## Instalation
@@ -96,6 +100,15 @@ To extract the optical flow:
 ```python
 python tools/extract_optical_flow.py --seq <sequence> --method <method:(sparse|dense)>
 ```
+
+## Alternative Branches
+
+We also provide alternative branches with RAM-VO implemented with REINFORCE, PPO 256 hidden units, and initial work in regression. The branches are:
+
+- `reinforce`
+- `ppo 256`
+- `city`
+- `pixel`
 
 ## Citation
 If you use this code and data in your research, please cite our arxiv paper:
