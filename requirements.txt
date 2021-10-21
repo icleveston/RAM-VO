@@ -11,7 +11,7 @@ atari-py==0.2.6
 atomicwrites==1.4.0
 attrs==20.3.0
 autopep8==1.5.4
-Babel==2.8.1
+Babel==2.9.1
 backcall==0.2.0
 beautifulsoup4==4.9.3
 bleach==3.2.1
