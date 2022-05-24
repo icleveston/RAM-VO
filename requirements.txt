@@ -160,7 +160,7 @@ tensorboard==2.3.0
 tensorboard-plugin-wit==1.6.0
 tensorflow==2.2.0
 tensorflow-estimator==2.3.0
-tensorflow-gpu==2.3.1
+tensorflow-gpu==2.6.4
 tensorpack==0.10.1
 termcolor==1.1.0
 testpath==0.4.4
