@@ -109,7 +109,7 @@ pydocstyle==5.1.1
 pyflakes==2.2.0
 pyglet==1.5.0
 Pygments==2.7.2
-PyJWT==1.7.1
+PyJWT==2.4.0
 pylint==2.6.0
 pyOpenSSL==19.1.0
 pyparsing==2.4.7
