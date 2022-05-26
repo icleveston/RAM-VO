@@ -158,7 +158,7 @@ tabulate==0.8.7
 tdqm==0.0.1
 tensorboard==2.3.0
 tensorboard-plugin-wit==1.6.0
-tensorflow==2.2.0
+tensorflow==2.7.2
 tensorflow-estimator==2.3.0
 tensorflow-gpu==2.3.1
 tensorpack==0.10.1
