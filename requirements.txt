@@ -139,7 +139,7 @@ Rtree==0.9.4
 scipy==1.5.4
 seaborn==0.11.1
 SecretStorage==3.1.2
-setuptools==50.3.0.post20201006
+setuptools==65.5.1
 sip==4.19.13
 six==1.15.0
 snowballstemmer==2.0.0
