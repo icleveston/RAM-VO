@@ -33,12 +33,11 @@ The experimental results in KITTI are presented for training (top row) and testi
  
 <img src="results/3/trajectory.png" width="20%"> <img src="results/7/trajectory.png" width="20%"> <img src="results/10/trajectory.png" width="20%">
 
-## Instalation
+## Installation
 
 RAM-VO requires Python 3.8. Cuda is not required, although recommended.
 
 ```bash
-git clone
 pip install -r requirements.txt
 ```
 
